@@ -1,3 +1,7 @@
+Note: andberger is my previous account. This project is not likely to see future development but there's some hope of building a new machine learning driven chess engine soon :D
+
+======================
+
 deciduous is my pet chess engine 
 
 Its board representation is bitboard based 
