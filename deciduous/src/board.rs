@@ -1,3 +1,8 @@
+/// Module of operations for manipulating the board representation
+/// The board is represented as a bitboard, an array of 64 bit integers
+/// As the chess board has 64 squares, we assign each square a bit, with the value of each bit determined by the
+/// occupancy of the corresponding square.
+
 /* Initial configuration of white */
 static WHITE_PIECES: i64 = 18446462598732840960;
 /* Initial configuration of black */
