@@ -59,7 +59,7 @@ fn init_bit_board() -> [u64; 8] {
     return board;
 }
 
-fn make_move(board: &mut [u64; 8], m: Move) -> &mut [u64; 8]{
+fn make_move(board: &mut [u64; 8], m: Move) -> &mut [u64; 8] {
     match m.color {
         Color::White => {
             board[0] ^= 1 << m.from;
@@ -82,6 +82,11 @@ fn make_move(board: &mut [u64; 8], m: Move) -> &mut [u64; 8]{
     board[m.piece.board_index() as usize] ^= 1 << m.from;
     board[m.piece.board_index() as usize] ^= 1 << m.to;
     return board;
+}
+
+fn unmake_move(board: &mut [u64; 8], m: Move) -> &mut [u64; 8] {
+    // xor is its own inverse operation
+    return make_move(board, m)
 }
 
 struct Move {
