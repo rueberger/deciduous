@@ -59,21 +59,37 @@ fn init_bit_board() -> [u64; 8] {
     return board;
 }
 
-fn make_move(board: [u64; 8], m: Move) -> [u64; 8]{
+fn make_move(board: &mut [u64; 8], m: Move) -> &mut [u64; 8]{
     match m.color {
         Color::White => {
+            board[0] ^= 1 << m.from;
+            board[0] ^= 1 << m.to;
+            if let Some(_capture) = &m.capture {
+                board[1] ^= 1 << m.to
+            }
         }
         Color::Black => {
+            board[1] ^= 1 << m.from;
+            board[1] ^= 1 << m.to;
+            if let Some(_capture) = &m.capture {
+                board[0] ^= 1 << m.to;
+            }
         }
     }
+    if let Some(capture) = &m.capture {
+        board[capture.board_index() as usize] ^= 1 << m.to;
+    }
+    board[m.piece.board_index() as usize] ^= 1 << m.from;
+    board[m.piece.board_index() as usize] ^= 1 << m.to;
+    return board;
 }
-
 
 struct Move {
     from: u8, // integer 0-63
     to: u8, // integer 0-63
-    piece: u8, // an integer 2-7 representing the index in the bitboard that needs to be changed
-    color: Color
+    piece: Piece,
+    color: Color,
+    capture: Option<Piece>
 }
 
 enum Color {
