@@ -79,14 +79,21 @@ fn make_move(board: &mut [u64; 8], m: Move) -> &mut [u64; 8] {
     if let Some(capture) = &m.capture {
         board[capture.board_index() as usize] ^= 1 << m.to;
     }
-    board[m.piece.board_index() as usize] ^= 1 << m.from;
-    board[m.piece.board_index() as usize] ^= 1 << m.to;
+    board[m.piece.board_index()] ^= 1 << m.from;
+    board[m.piece.board_index()] ^= 1 << m.to;
     return board;
 }
 
 fn unmake_move(board: &mut [u64; 8], m: Move) -> &mut [u64; 8] {
     // xor is its own inverse operation
     return make_move(board, m)
+}
+
+fn generate_rook_moves(board: [u64; 8], color: Color) -> Vec<[u64; 8]> {
+    let rook_moves = Vec::new();
+    let rooks = board[color.board_index()] & board[Piece::Rook.board_index()];
+    while (rooks != 0) {
+    }
 }
 
 struct Move {
@@ -102,6 +109,16 @@ enum Color {
     Black
 }
 
+impl Color {
+    /// Returns the index of the bitboard for color
+    fn board_index(&self) ->  usize {
+        match self {
+            Color::White => 0,
+            Color::Black => 1
+        }
+    }
+}
+
 enum Piece {
     Pawn,
     Bishop,
@@ -113,7 +130,7 @@ enum Piece {
 
 impl Piece {
     /// Returns the index of the bitboard for piece type
-    fn board_index(&self) -> u8 {
+    fn board_index(&self) -> usize {
         match self {
             Piece::Pawn => 2,
             Piece::Bishop => 3,
