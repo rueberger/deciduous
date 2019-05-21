@@ -89,12 +89,33 @@ fn unmake_move(board: &mut [u64; 8], m: Move) -> &mut [u64; 8] {
     return make_move(board, m)
 }
 
-fn generate_rook_moves(board: [u64; 8], color: Color) -> Vec<[u64; 8]> {
-    let rook_moves = Vec::new();
-    let rooks = board[color.board_index()] & board[Piece::Rook.board_index()];
-    while (rooks != 0) {
-    }
+fn fill_rank(rank: u8) ->  u64 {
+    assert!((0 <= rank) & (rank < 8));
+
+    let mut result: u64 = 11111111;
+    return result << (rank * 8);
 }
+
+fn fill_file(file: u64) -> u64 {
+    assert!((0 <= file) & (file < 8));
+
+    let mut result: u64 = 0;
+    for idx in 0..8 {
+        result |= file << (idx * 8);
+    }
+    return result
+}
+
+// fn ray_attack(board: &[u64, 8], square: u8, direction: u8) {
+
+// }
+
+// fn generate_rook_moves(board: &[u64; 8], color: Color) -> Vec<[u64; 8]> {
+//     let rook_moves = Vec::new();
+//     let rooks = board[color.board_index()] & board[Piece::Rook.board_index()];
+//     while (rooks != 0) {
+//     }
+// }
 
 struct Move {
     from: u8, // integer 0-63
