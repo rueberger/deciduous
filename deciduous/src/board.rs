@@ -37,32 +37,6 @@ static QUEENS: u64 = 1152921504606846992;
 
 
 pub struct Board {
-    // board representation
-    pub bitboard: [u64; 8],
-    // Lookup tables
-
-    // Value at i performs the eponymous operation when '&'ed with a state
-    clear_rank: [u64; 8],
-    clear_file: [u64; 8],
-    mask_rank: [u64; 8],
-    mask_file: [u64; 8],
-
-    // Each value is the eponymous ray for that square
-    north: [u64; 64],
-    north_west: [u64; 64],
-    west: [u64; 64],
-    south_west: [u64; 64],
-    south: [u64; 64],
-    south_east: [u64; 64],
-    east: [u64; 64],
-    north_east: [u64; 64],
-}
-
-impl Board {
-
-
-    /// Sets the initial board state
-    /// Each u64 treated as a 64 bit word
     /// Bit indexing:
     ///    Least significant digit is 0
     ///    MSD is 63
@@ -85,7 +59,30 @@ impl Board {
     /// 5:rooks
     /// 6:kings
     /// 7:queens
-    pub fn init_bitboard(&mut self) {
+    pub bitboard: [u64; 8],
+    // Lookup tables
+
+    // Value at i performs the eponymous operation when '&'ed with a state
+    clear_rank: [u64; 8],
+    clear_file: [u64; 8],
+    mask_rank: [u64; 8],
+    mask_file: [u64; 8],
+
+    // Each value is the eponymous ray for that square
+    north: [u64; 64],
+    north_west: [u64; 64],
+    west: [u64; 64],
+    south_west: [u64; 64],
+    south: [u64; 64],
+    south_east: [u64; 64],
+    east: [u64; 64],
+    north_east: [u64; 64],
+}
+
+impl Board {
+
+    /// Sets the initial board state
+    pub fn initialize(&mut self) {
         self.bitboard = [
             WHITE_PIECES,
             BLACK_PIECES,
@@ -96,7 +93,25 @@ impl Board {
             KINGS,
             QUEENS
         ];
+
+        // initialize mask tables
+        for idx in 0..8 {
+            self.mask_rank[idx] = fill_rank(idx as u8);
+            self.mask_file[idx]= fill_file(idx as u8);
+            self.clear_rank[idx] = !self.mask_rank[idx];
+            self.clear_file[idx] = !self.mask_file[idx];
+        }
+
+        // initialize ray tables
+        for rank in 0..8 {
+            for file in 0..8 {
+                let idx = rank * 8 + file;
+                let vertical = self.mask_file[file] & self.clear_rank[rank];
+                let horizontal = self.mask_rank[rank] & self.clear_file[file];
+            }
+        }
     }
+
 }
 
 pub fn init_board() -> Board {
