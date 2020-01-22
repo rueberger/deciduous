@@ -20,9 +20,9 @@
 
 // Some magic constants
 // Initial configuration of white
-static WHITE_PIECES: u64 = 18446462598732840960;
+static WHITE_PIECES: u64 = 65535;
 // Initial configuration of black
-static BLACK_PIECES: u64 = 65535;
+static BLACK_PIECES: u64 = 18446462598732840960;
 // Initial configuration of pawns
 static PAWNS: u64 = 71776119061282560;
 // Initial configuration of bishops
@@ -107,9 +107,9 @@ impl Board {
         // initialize ray tables
         for rank in 0..8 {
             for file in 0..8 {
-                let idx = rank * 8 + file;
                 let vertical = self.mask_file[file] & self.clear_rank[rank];
                 let horizontal = self.mask_rank[rank] & self.clear_file[file];
+                let idx = square_idx(rank as u8, file as u8);
             }
         }
     }
@@ -135,7 +135,7 @@ pub fn init_board() -> Board {
     board
 }
 
-fn square_idx(rank_idx: u8, file_idx: u8) -> u8 {
+pub fn square_idx(rank_idx: u8, file_idx: u8) -> u8 {
     assert!((rank_idx < 8) & (file_idx < 8));
 
     rank_idx * 8 + file_idx
@@ -235,7 +235,9 @@ pub fn bitscan_lsd(state: u64) -> Option<u8> {
 
 // fn ray_attack(board: &[u64, 8], square: u8, direction: u8) {
 //
+//
 //}
+
 
 
 
