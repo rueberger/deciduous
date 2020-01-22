@@ -3,6 +3,18 @@
 /// As the chess board has 64 squares, we assign each square a bit, with the value of each bit determined by the
 /// occupancy of the corresponding square.
 
+//  Allowed values of orientation:
+//
+//   nowe         nort         noea
+//          +7    +8    +9
+//              \  |  /
+//  west    -1 <-  0 -> +1    east
+//              /  |                        \
+//          -9    -8    -7
+//  soWe         sout         soEa
+//
+
+
 // TODO: figure out module structure
 
 // Some magic constants
@@ -23,44 +35,89 @@ static KINGS: u64 = 576460752303423496;
 /* The initial location of the queens */
 static QUEENS: u64 = 1152921504606846992;
 
-/// Returns an array of longs representing the board state.
-/// Each i64 treated as a 64 bit word
-/// Bit indexing:
-///    Least significant digit is 0
-///    MSD is 63
-///
-/// Square ordering:
-///
-/// 1: A B C D E F G H | 0 1 2 3 4 5 6 7
-/// 2: A B C D E F G H | 8 9 10 11 12 13 14 15
-/// 3: A B C D E F G H | 16 17 18 19 20 21 22 23
-/// ...
-/// 8: A B C D E F G H | 56 57 58 59 60 61 62 63
-///
-/// Array contents:
-///
-/// 0:White pieces
-/// 1:Black pieces
-/// 2:pawns
-/// 3:bishops
-/// 4:knights
-/// 5:rooks
-/// 6:kings
-/// 7:queens
 
-fn init_bit_board() -> [u64; 8] {
-    let board: [u64; 8] = [
-        WHITE_PIECES,
-        BLACK_PIECES,
-        PAWNS,
-        BISHOPS,
-        KNIGHTS,
-        ROOKS,
-        KINGS,
-        QUEENS
-    ];
-    return board;
+pub struct Board {
+    // board representation
+    pub bitboard: [u64; 8],
+    // Lookup tables
+
+    // Value at i performs the eponymous operation when '&'ed with a state
+    clear_rank: [u64; 8],
+    clear_file: [u64; 8],
+    mask_rank: [u64; 8],
+    mask_file: [u64; 8],
+
+    // Each value is the eponymous ray for that square
+    north: [u64; 64],
+    north_west: [u64; 64],
+    west: [u64; 64],
+    south_west: [u64; 64],
+    south: [u64; 64],
+    south_east: [u64; 64],
+    east: [u64; 64],
+    north_east: [u64; 64],
 }
+
+impl Board {
+
+
+    /// Sets the initial board state
+    /// Each u64 treated as a 64 bit word
+    /// Bit indexing:
+    ///    Least significant digit is 0
+    ///    MSD is 63
+    ///
+    /// Square ordering:
+    ///
+    /// 1: A B C D E F G H | 0 1 2 3 4 5 6 7
+    /// 2: A B C D E F G H | 8 9 10 11 12 13 14 15
+    /// 3: A B C D E F G H | 16 17 18 19 20 21 22 23
+    /// ...
+    /// 8: A B C D E F G H | 56 57 58 59 60 61 62 63
+    ///
+    /// Array contents:
+    ///
+    /// 0:White pieces
+    /// 1:Black pieces
+    /// 2:pawns
+    /// 3:bishops
+    /// 4:knights
+    /// 5:rooks
+    /// 6:kings
+    /// 7:queens
+    pub fn init_bitboard(&mut self) {
+        self.bitboard = [
+            WHITE_PIECES,
+            BLACK_PIECES,
+            PAWNS,
+            BISHOPS,
+            KNIGHTS,
+            ROOKS,
+            KINGS,
+            QUEENS
+        ];
+    }
+}
+
+pub fn init_board() -> Board {
+    let mut board = Board {
+        bitboard: [0; 8],
+        clear_rank: [0; 8],
+        clear_file: [0; 8],
+        mask_rank: [0; 8],
+        mask_file: [0; 8],
+        north: [0; 64],
+        north_west: [0; 64],
+        west: [0; 64],
+        south_west: [0; 64],
+        south: [0; 64],
+        south_east: [0; 64],
+        east: [0; 64],
+        north_east: [0; 64],
+    };
+    board
+}
+
 
 fn make_move(board: &mut [u64; 8], m: Move) -> &mut [u64; 8] {
     match m.color {
@@ -141,8 +198,13 @@ pub fn bitscan_lsd(state: u64) -> u8 {
 }
 
 // fn ray_attack(board: &[u64, 8], square: u8, direction: u8) {
+//
+//}
 
-// }
+
+
+
+
 
 // fn generate_rook_moves(board: &[u64; 8], color: Color) -> Vec<[u64; 8]> {
 //     let rook_moves = Vec::new();
