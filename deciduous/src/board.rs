@@ -208,8 +208,13 @@ fn file_range(start: u8, end: u8) -> u64 {
 }
 
 
-pub fn bitscan_lsd(state: u64) -> u8 {
-    return state.trailing_zeros() as u8;
+pub fn bitscan_lsd(state: u64) -> Option<u8> {
+    let trailing = state.trailing_zeros() as u8;
+    if trailing == 64 {
+        return None;
+    } else {
+        return Some(trailing)
+    }
 }
 
 // fn ray_attack(board: &[u64, 8], square: u8, direction: u8) {
