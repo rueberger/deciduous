@@ -108,9 +108,30 @@ fn fill_file(file_idx: u8) -> u64 {
     return result
 }
 
-/// Fill board ranks from start_rank_idx to end_rank_idx
-// fn rank_range(start_rank_idx: u8, end_rank_idx: u8) -> u64 {
-// }
+/// Fill board ranks from [start, end]
+/// NOTE: end idx inclusive
+fn rank_range(start: u8, end: u8) -> u64 {
+    assert!((start <= end) & (start <= 8) & (end <= 8));
+
+    let mut result: u64 = 0;
+    for rank_idx in start..=end {
+        result |= fill_rank(rank_idx)
+    }
+    return result;
+}
+
+/// Fill board files from [start, end]
+/// NOTE: end idx inclusive
+fn file_range(start: u8, end: u8) -> u64 {
+    assert!((start <= end) & (start <= 8) & (end <= 8));
+
+    let mut result: u64 = 0;
+    for file_idx in start..=end {
+        result |= fill_file(file_idx)
+    }
+    return result;
+}
+
 
 // fn ray_attack(board: &[u64, 8], square: u8, direction: u8) {
 
