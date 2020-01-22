@@ -39,6 +39,10 @@ static QUEENS: u64 = 1152921504606846992;
 static EMPTY_SET: u64 = 0;
 // The universal set with all bits set
 static UNIVERSAL_SET: u64 = 18446744073709551615;
+// All bits set in the a-file
+static A_FILE: u64 = 0x0101010101010101;
+// All bits set in the 1st-rank
+static FIRST_RANK: u64 = 0x00000000000000FF;
 
 pub struct Board {
 
