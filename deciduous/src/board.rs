@@ -258,3 +258,15 @@ impl Piece {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bitscan_lsd() {
+        assert_eq!(1, bitscan_lsd(1 << 1));
+        assert_eq!(63, bitscan_lsd(1 << 63));
+        assert_eq!(1, bitscan_lsd((1 << 1) ^ (1 << 5)));
+    }
+}
