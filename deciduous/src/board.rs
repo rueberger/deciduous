@@ -91,7 +91,7 @@ fn unmake_move(board: &mut [u64; 8], m: Move) -> &mut [u64; 8] {
 
 /// Fill rank at rank_idx
 fn fill_rank(rank_idx: u8) ->  u64 {
-    assert!((0 <= rank_idx) & (rank_idx < 8));
+    assert!(rank_idx < 8);
 
     let mut result: u64 = 11111111;
     return result << (rank_idx * 8);
@@ -99,7 +99,7 @@ fn fill_rank(rank_idx: u8) ->  u64 {
 
 /// Fill file at file_idx
 fn fill_file(file_idx: u8) -> u64 {
-    assert!((0 <= file_idx) & (file_idx < 8));
+    assert!(file_idx < 8);
 
     let mut result: u64 = 0;
     for idx in 0..8 {
