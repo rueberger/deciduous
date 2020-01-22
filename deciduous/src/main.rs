@@ -5,9 +5,9 @@ fn render_board(state: u64) -> String {
     let mut render = String::new();
 
     // TODO: no idea if this order is right
-    for rank in 0..8 {
+    for rank in (0..8).rev() {
         for file in 0..8 {
-            let idx = rank * 8 + file;
+            let idx = board::square_idx(rank, file);
 
             render.push('[');
             // TODO: check for order here too
@@ -30,6 +30,7 @@ fn main() {
 
 
     println!("White:\n{}", render_board(b.bitboard[0]));
+    println!("White bitscan:\n{}", board::bitscan_lsd(b.bitboard[0]).unwrap());
     println!("Black:\n{}", render_board(b.bitboard[1]));
     println!("Pawns:\n{}", render_board(b.bitboard[2]));
     println!("Bishops:\n{}", render_board(b.bitboard[3]));
@@ -39,6 +40,7 @@ fn main() {
     println!("Queens:\n{}", render_board(b.bitboard[7]));
 
     println!("a-file:\n{}", render_board(0x0101010101010101));
+    println!("a-file bitscan:\n{}", board::bitscan_lsd(0x0101010101010101).unwrap());
     println!("1st-rank:\n{}", render_board(0x00000000000000FF));
 
 
