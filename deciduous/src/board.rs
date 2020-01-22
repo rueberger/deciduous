@@ -3,6 +3,8 @@
 /// As the chess board has 64 squares, we assign each square a bit, with the value of each bit determined by the
 /// occupancy of the corresponding square.
 
+// TODO: figure out module structure
+
 // Some magic constants
 /* Initial configuration of white */
 static WHITE_PIECES: u64 = 18446462598732840960;
@@ -22,7 +24,7 @@ static KINGS: u64 = 576460752303423496;
 static QUEENS: u64 = 1152921504606846992;
 
 /// Returns an array of longs representing the board state.
-/// Each long treated as a 64 bit word
+/// Each i64 treated as a 64 bit word
 /// Bit indexing:
 ///    Least significant digit is 0
 ///    MSD is 63
@@ -45,6 +47,7 @@ static QUEENS: u64 = 1152921504606846992;
 /// 5:rooks
 /// 6:kings
 /// 7:queens
+
 fn init_bit_board() -> [u64; 8] {
     let board: [u64; 8] = [
         WHITE_PIECES,
@@ -132,6 +135,10 @@ fn file_range(start: u8, end: u8) -> u64 {
     return result;
 }
 
+
+pub fn bitscan_lsd(state: u64) -> u8 {
+    return state.trailing_zeros() as u8;
+}
 
 // fn ray_attack(board: &[u64, 8], square: u8, direction: u8) {
 
