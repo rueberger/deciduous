@@ -28,5 +28,12 @@ fn main() {
     let mut b = board::init_board();
     b.initialize();
 
-    println!("White:{}", render_board(b.bitboard[0]));
+    println!("Whiten:\n{}", render_board(b.bitboard[0]));
+    println!("Black:\n{}", render_board(b.bitboard[1]));
+    println!("Pawns:\n{}", render_board(b.bitboard[2]));
+    println!("Bishops:\n{}", render_board(b.bitboard[3]));
+    println!("Knights:\n{}", render_board(b.bitboard[4]));
+    println!("Rooks:\n{}", render_board(b.bitboard[5]));
+    println!("Kings:\n{}", render_board(b.bitboard[6]));
+    println!("Queens:\n{}", render_board(b.bitboard[7]));
 }
