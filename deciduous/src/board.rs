@@ -318,4 +318,14 @@ mod tests {
             assert_eq!(square_idx(rank, file), sq_idx)
         }
     }
+
+    #[test]
+    fn test_fill_rank_0() {
+        assert_eq!(fill_rank(0), FIRST_RANK);
+    }
+
+    #[test]
+    fn test_fill_file_0() {
+        assert_eq!(fill_file(0), A_FILE)
+    }
 }
