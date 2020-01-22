@@ -188,19 +188,16 @@ fn unmake_move(board: &mut [u64; 8], m: Move) -> &mut [u64; 8] {
 fn fill_rank(rank_idx: u8) ->  u64 {
     assert!(rank_idx < 8);
 
-    let mut result: u64 = 11111111;
-    return result << (rank_idx * 8);
+    let mut result: u64 = FIRST_RANK;
+    result << (rank_idx * 8)
 }
 
 /// Fill file at file_idx
 fn fill_file(file_idx: u8) -> u64 {
     assert!(file_idx < 8);
 
-    let mut result: u64 = 0;
-    for idx in 0..8 {
-        result |= (file_idx as u64) << (idx * 8);
-    }
-    return result
+    let mut result: u64 = A_FILE;
+    result << file_idx
 }
 
 /// Fill board ranks from [start, end]

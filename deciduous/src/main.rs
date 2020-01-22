@@ -39,18 +39,6 @@ fn main() {
     println!("Kings:\n{}", render_board(b.bitboard[6]));
     println!("Queens:\n{}", render_board(b.bitboard[7]));
 
-    println!("a-file:\n{}", render_board(0x0101010101010101));
-    println!("a-file bitscan:\n{}", board::bitscan_lsd(0x0101010101010101).unwrap());
-    println!("1st-rank:\n{}", render_board(0x00000000000000FF));
-
-
-    // for idx in 0..8 {
-    //     println!("index: {} \n", idx);
-    //     println!("mask rank:\n{}", render_board(b.mask_rank[idx]));
-    //     println!("mask file:\n{}", render_board(b.mask_file[idx]));
-    //     println!("clear rank:\n{}", render_board(b.clear_rank[idx]));
-    //     println!("clear file:\n{}", render_board(b.clear_file[idx]));
-    // }
 }
 
 
