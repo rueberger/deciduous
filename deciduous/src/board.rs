@@ -89,22 +89,28 @@ fn unmake_move(board: &mut [u64; 8], m: Move) -> &mut [u64; 8] {
     return make_move(board, m)
 }
 
-fn fill_rank(rank: u8) ->  u64 {
-    assert!((0 <= rank) & (rank < 8));
+/// Fill rank at rank_idx
+fn fill_rank(rank_idx: u8) ->  u64 {
+    assert!((0 <= rank_idx) & (rank_idx < 8));
 
     let mut result: u64 = 11111111;
-    return result << (rank * 8);
+    return result << (rank_idx * 8);
 }
 
-fn fill_file(file: u64) -> u64 {
-    assert!((0 <= file) & (file < 8));
+/// Fill file at file_idx
+fn fill_file(file_idx: u8) -> u64 {
+    assert!((0 <= file_idx) & (file_idx < 8));
 
     let mut result: u64 = 0;
     for idx in 0..8 {
-        result |= file << (idx * 8);
+        result |= (file_idx as u64) << (idx * 8);
     }
     return result
 }
+
+/// Fill board ranks from start_rank_idx to end_rank_idx
+// fn rank_range(start_rank_idx: u8, end_rank_idx: u8) -> u64 {
+// }
 
 // fn ray_attack(board: &[u64, 8], square: u8, direction: u8) {
 
