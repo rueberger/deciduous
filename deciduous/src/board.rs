@@ -2,6 +2,7 @@
 /// The board is represented as a bitboard, an array of 64 bit integers
 /// As the chess board has 64 squares, we assign each square a bit, with the value of each bit determined by the
 /// occupancy of the corresponding square.
+/// Supports only little-endian architectures
 
 //  Allowed values of orientation:
 //
@@ -18,30 +19,31 @@
 // TODO: figure out module structure
 
 // Some magic constants
-/* Initial configuration of white */
+// Initial configuration of white
 static WHITE_PIECES: u64 = 18446462598732840960;
-/* Initial configuration of black */
+// Initial configuration of black
 static BLACK_PIECES: u64 = 65535;
-/* Initial configuration of pawns */
+// Initial configuration of pawns
 static PAWNS: u64 = 71776119061282560;
-/* Initial configuration of bishops */
+// Initial configuration of bishops
 static BISHOPS: u64 = 2594073385365405732;
-/* Initial confiuration of knights */
+// Initial confiuration of knights
 static KNIGHTS: u64 = 4755801206503243842;
-/* The initla location of rooks */
+// The initla location of rooks
 static ROOKS: u64 = 9295429630892703873;
-/* The initial location of the kings */
+// The initial location of the kings
 static KINGS: u64 = 576460752303423496;
-/* The initial location of the queens */
+// The initial location of the queens
 static QUEENS: u64 = 1152921504606846992;
-
+// The empty set with no bits set
+static EMPTY_SET: u64 = 0;
+// The universal set with all bits set
+static UNIVERSAL_SET: u64 = 18446744073709551615;
 
 pub struct Board {
-    /// Bit indexing:
-    ///    Least significant digit is 0
-    ///    MSD is 63
-    ///
-    /// Square ordering:
+
+    // TODO: switch to more compact bitboard structure soon
+    /// Square ordering is Little-Endian Rank-File
     ///
     /// 1: A B C D E F G H | 0 1 2 3 4 5 6 7
     /// 2: A B C D E F G H | 8 9 10 11 12 13 14 15
@@ -63,20 +65,20 @@ pub struct Board {
     // Lookup tables
 
     // Value at i performs the eponymous operation when '&'ed with a state
-    clear_rank: [u64; 8],
-    clear_file: [u64; 8],
-    mask_rank: [u64; 8],
-    mask_file: [u64; 8],
+    pub clear_rank: [u64; 8],
+    pub clear_file: [u64; 8],
+    pub mask_rank: [u64; 8],
+    pub mask_file: [u64; 8],
 
     // Each value is the eponymous ray for that square
-    north: [u64; 64],
-    north_west: [u64; 64],
-    west: [u64; 64],
-    south_west: [u64; 64],
-    south: [u64; 64],
-    south_east: [u64; 64],
-    east: [u64; 64],
-    north_east: [u64; 64],
+    pub north: [u64; 64],
+    pub north_west: [u64; 64],
+    pub west: [u64; 64],
+    pub south_west: [u64; 64],
+    pub south: [u64; 64],
+    pub south_east: [u64; 64],
+    pub east: [u64; 64],
+    pub north_east: [u64; 64],
 }
 
 impl Board {
@@ -131,6 +133,20 @@ pub fn init_board() -> Board {
         north_east: [0; 64],
     };
     board
+}
+
+fn square_idx(rank_idx: u8, file_idx: u8) -> u8 {
+    assert!((rank_idx < 8) & (file_idx < 8));
+
+    rank_idx * 8 + file_idx
+}
+
+fn rank_idx(square_idx: u8) -> u8 {
+    square_idx >> 3
+}
+
+fn file_idx(square_idx: u8) -> u8 {
+    square_idx & 7
 }
 
 
@@ -289,5 +305,14 @@ mod tests {
         assert_eq!(Some(63), bitscan_lsd(1 << 63));
         assert_eq!(Some(1), bitscan_lsd((1 << 1) ^ (1 << 5)));
         assert_eq!(None, bitscan_lsd(0));
+    }
+
+    #[test]
+    fn test_idx_bijection() {
+        for sq_idx in 0..63 {
+            let rank = rank_idx(sq_idx);
+            let file = file_idx(sq_idx);
+            assert_eq!(square_idx(rank, file), sq_idx)
+        }
     }
 }
