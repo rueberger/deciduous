@@ -84,6 +84,21 @@ pub struct Board {
     pub south_east: [u64; 64],
     pub east: [u64; 64],
     pub north_east: [u64; 64],
+
+    //  Knight compass rose:
+    //
+    //        noNoWe    noNoEa
+    //            +15  +17
+    //             |     |
+    //noWeWe  +6 __|     |__+10  noEaEa
+    //              \   /
+    //               >0<
+    //           __ /   \ __
+    //soWeWe -10   |     |   -6  soEaEa
+    //             |     |
+    //            -17  -15
+    //        soSoWe    soSoEa
+    pub knight_moves: [u64; 64]
 }
 
 impl Board {
@@ -143,6 +158,20 @@ impl Board {
             self.south_east[idx] &= !(1 << idx);
             self.south_west[idx] &= !(1 << idx);
         }
+
+        // initialize knight movement tables
+        for idx in 0..64 {
+            let sq = (1 << idx);
+
+            self.knight_moves[idx] |= (sq << 17) & self.clear_file[0];
+            self.knight_moves[idx] |= (sq << 10) & (self.clear_file[0] & self.clear_file[1]);
+            self.knight_moves[idx] |= (sq >> 6) & (self.clear_file[0] & self.clear_file[1]);
+            self.knight_moves[idx] |= (sq >> 15) & self.clear_file[0];
+            self.knight_moves[idx] |= (sq >> 17) & self.clear_file[7];
+            self.knight_moves[idx] |= (sq >> 10) & (self.clear_file[6] & self.clear_file[7]);
+            self.knight_moves[idx] |= (sq << 6) & (self.clear_file[6] & self.clear_file[7]);
+            self.knight_moves[idx] |= (sq << 15) & self.clear_file[7];
+        }
     }
 
 }
@@ -162,6 +191,7 @@ pub fn init_board() -> Board {
         south_east: [0; 64],
         east: [0; 64],
         north_east: [0; 64],
+        knight_moves: [0; 64]
     };
     board
 }
@@ -252,6 +282,8 @@ fn file_range(start: u8, end: u8) -> u64 {
 }
 
 
+/// Return square index of first set bit
+/// If no bit is set returns None
 pub fn bitscan_lsd(state: u64) -> Option<u8> {
     let trailing = state.trailing_zeros() as u8;
     if trailing == 64 {
