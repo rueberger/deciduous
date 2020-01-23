@@ -51,6 +51,7 @@ pub fn file_idx(square_idx: u8) -> u8 {
 }
 
 // TODO: optimize, there should be an explicit form
+// looks like sq_idx ^ 0b111000 does the trick
 /// Return square index after flipping about the horizontal axis
 pub fn flip_square_index(sq_idx: u8) -> u8 {
     let flipped = ((1 as u64) << sq_idx).to_be();
@@ -81,11 +82,30 @@ impl Board {
         self.ortho_sliders = self.ortho_sliders.to_be();
         self.diag_sliders = self.ortho_sliders.to_be();
         self.pawns = self.pawns.to_be();
+        // TODO: lc0 uses a BoardSquare class for this. should I?
         self.own_king = flip_square_index(self.own_king);
         self.opp_king = flip_square_index(self.opp_king);
         mem::swap(&mut self.own_king, &mut self.opp_king);
         mem::swap(&mut self.own_castling_rights, &mut self.opp_castling_rights);
         self.flipped = !self.flipped;
+    }
+
+    pub fn rooks(&self) -> u64 {
+        self.ortho_sliders & !self.diag_sliders
+    }
+
+    pub fn bishops(&self) -> u64 {
+        self.diag_sliders & !self.ortho_sliders
+    }
+
+    pub fn queens(&self) -> u64 {
+        self.diag_sliders & self.ortho_sliders
+    }
+
+    pub fn knights(&self) -> u64 {
+        let kings = ((1 as u64) << self.own_king) | ((1 as u64) << self.opp_king);
+        let other_pieces = self.ortho_sliders | self.diag_sliders | self.pawns | kings;
+        (self.own_pieces | self.opp_pieces) & !other_pieces
     }
 }
 
