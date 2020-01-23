@@ -4,16 +4,6 @@
 /// occupancy of the corresponding square.
 /// Supports only little-endian architectures
 
-//  Allowed values of orientation:
-//
-//   nowe         nort         noea
-//          +7    +8    +9
-//              \  |  /
-//  west    -1 <-  0 -> +1    east
-//              /  |                        \
-//          -9    -8    -7
-//  soWe         sout         soEa
-//
 
 
 // TODO: figure out module structure
@@ -75,6 +65,17 @@ pub struct Board {
     pub mask_file: [u64; 8],
 
     // Each value is the eponymous ray for that square
+    //
+    //  Allowed values of orientation:
+    //
+    //   nowe         nort         noea
+    //          +7    +8    +9
+    //              \  |  /
+    //  west    -1 <-  0 -> +1    east
+    //              /  |                        \
+    //          -9    -8    -7
+    //  soWe         sout         soEa
+    //
     pub north: [u64; 64],
     pub north_west: [u64; 64],
     pub west: [u64; 64],
@@ -109,12 +110,38 @@ impl Board {
         }
 
         // initialize ray tables
+        // rectangular rays
         for rank in 0..8 {
             for file in 0..8 {
                 let vertical = self.mask_file[file] & self.clear_rank[rank];
                 let horizontal = self.mask_rank[rank] & self.clear_file[file];
                 let idx = square_idx(rank as u8, file as u8);
+
+                self.north[idx] = rank_range(rank as u8, 7) & vertical;
+                self.south[idx] = rank_range(0, rank as u8) & vertical;
+                self.west[idx] = file_range(0, file as u8) & horizontal;
+                self.east[idx] = file_range(file as u8, 7) & horizontal;
             }
+        }
+
+        // diagonal rays
+        for idx in 0..64 {
+            self.north_east[idx] = (1 << idx);
+            self.north_west[idx] = (1 << idx);
+            self.south_east[idx] = (1 << idx);
+            self.south_west[idx] = (1 << idx);
+
+            for _ in 0..8 {
+                self.north_east[idx] |= (self.north_east[idx] & self.clear_file[7]) << 9;
+                self.north_west[idx] |= (self.north_west[idx] & self.clear_file[0]) << 7;
+                self.south_east[idx] |= (self.south_east[idx] & self.clear_file[7]) >> 7;
+                self.south_west[idx] |= (self.south_west[idx] & self.clear_file[0]) >> 9;
+            }
+
+            self.north_east[idx] &= !(1 << idx);
+            self.north_west[idx] &= !(1 << idx);
+            self.south_east[idx] &= !(1 << idx);
+            self.south_west[idx] &= !(1 << idx);
         }
     }
 
@@ -139,10 +166,10 @@ pub fn init_board() -> Board {
     board
 }
 
-pub fn square_idx(rank_idx: u8, file_idx: u8) -> u8 {
+pub fn square_idx(rank_idx: u8, file_idx: u8) -> usize {
     assert!((rank_idx < 8) & (file_idx < 8));
 
-    rank_idx * 8 + file_idx
+    (rank_idx * 8 + file_idx) as usize
 }
 
 fn rank_idx(square_idx: u8) -> u8 {
