@@ -246,35 +246,36 @@ pub fn init_move_gen() -> MoveGen {
 }
 
 
-fn make_move(board: &mut [u64; 8], m: Move) -> &mut [u64; 8] {
-    match m.color {
-        Color::White => {
-            board[0] ^= 1 << m.from;
-            board[0] ^= 1 << m.to;
-            if let Some(_capture) = &m.capture {
-                board[1] ^= 1 << m.to
-            }
-        }
-        Color::Black => {
-            board[1] ^= 1 << m.from;
-            board[1] ^= 1 << m.to;
-            if let Some(_capture) = &m.capture {
-                board[0] ^= 1 << m.to;
-            }
-        }
-    }
-    if let Some(capture) = &m.capture {
-        board[capture.board_index() as usize] ^= 1 << m.to;
-    }
-    board[m.piece.board_index()] ^= 1 << m.from;
-    board[m.piece.board_index()] ^= 1 << m.to;
-    return board;
-}
+// fn make_move(board: &mut [u64; 8], m: Move) -> &mut [u64; 8] {
+//     match m.color {
+//         Color::White => {
+//             board[0] ^= 1 << m.from;
+//             board[0] ^= 1 << m.to;
+//             if let Some(_capture) = &m.capture {
+//                 board[1] ^= 1 << m.to
+//             }
+//         }
+//         Color::Black => {
+//             board[1] ^= 1 << m.from;
+//             board[1] ^= 1 << m.to;
+//             if let Some(_capture) = &m.capture {
+//                 board[0] ^= 1 << m.to;
+//             }
+//         }
+//     }
+//     if let Some(capture) = &m.capture {
+//         board[capture.board_index() as usize] ^= 1 << m.to;
+//     }
+//     board[m.piece.board_index()] ^= 1 << m.from;
+//     board[m.piece.board_index()] ^= 1 << m.to;
+//     return board;
+// }
 
-fn unmake_move(board: &mut [u64; 8], m: Move) -> &mut [u64; 8] {
-    // xor is its own inverse operation
-    return make_move(board, m)
-}
+// fn unmake_move(board: &mut [u64; 8], m: Move) -> &mut [u64; 8] {
+//     // xor is its own inverse operation
+//     return make_move(board, m)
+// }
+
 
 /// Fill rank at rank_idx
 fn fill_rank(rank_idx: u8) ->  u64 {
