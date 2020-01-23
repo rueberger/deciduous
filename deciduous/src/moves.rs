@@ -224,6 +224,31 @@ impl MoveGen {
         }
         (flood << 7) & self.clear_file[7]
     }
+
+    // =================================
+    //         PAWN MOVE GEN
+    // =================================
+
+    /// Return possible double and single pawn pushes
+    /// Does not treat captures, promotion or en passant
+    pub fn pawn_pushes(board: Board) -> u64 {
+        let own_pawns = board.own_pieces & board.pawns;
+        let empty = !(board.own_pieces & board.opp_pieces);
+
+        let mut flood = (own_pawns << 8) & empty;
+        flood |= (flood << 8) & empty;
+
+        flood
+    }
+
+    /// Return possible captures
+    /// Does not treat en passant
+    pub fn pawn_captures(&self, board: Board) -> u64 {
+        let own_pawns = board.own_pieces & board.pawns;
+        let right_moves = (own_pawns << 9) & self.clear_file[0];
+        let left_moves = (own_pawns << 7) & self.clear_file[7];
+        (right_moves & board.opp_pieces) | (left_moves & board.opp_pieces)
+    }
 }
 
 pub fn init_move_gen() -> MoveGen {
