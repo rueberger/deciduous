@@ -65,7 +65,6 @@ pub struct Board {
     pub mask_file: [u64; 8],
 
     // Each value is the eponymous ray for that square
-    //
     //  Allowed values of orientation:
     //
     //   nowe         nort         noea
@@ -214,6 +213,91 @@ impl Board {
         }
         flood >> 8
     }
+
+    /// Calculates all east attacks using dumb7fill
+    ///
+    /// Args:
+    ///   sliders: bits set wherever attacking pieces are
+    ///   empty: bits set at all empty squares
+    pub fn east_attacks(&self, sliders: u64, empty: u64) -> u64 {
+        let mut flood = sliders;
+        let mask = empty & self.clear_file[0];
+        for _ in 0..7 {
+            flood |= (flood << 1) & mask;
+        }
+        (flood << 1) * self.clear_file[0]
+    }
+
+    /// Calculates all north east attacks using dumb7fill
+    ///
+    /// Args:
+    ///   sliders: bits set wherever attacking pieces are
+    ///   empty: bits set at all empty squares
+    pub fn north_east_attacks(&self, sliders: u64, empty: u64) -> u64 {
+        let mut flood = sliders;
+        let mask = empty & self.clear_file[0];
+        for _ in 0..7 {
+            flood |= (flood << 9) & mask;
+        }
+        (flood << 9) * self.clear_file[0]
+    }
+
+    /// Calculates all south east attacks using dumb7fill
+    ///
+    /// Args:
+    ///   sliders: bits set wherever attacking pieces are
+    ///   empty: bits set at all empty squares
+    pub fn south_east_attacks(&self, sliders: u64, empty: u64) -> u64 {
+        let mut flood = sliders;
+        let mask = empty & self.clear_file[0];
+        for _ in 0..7 {
+            flood |= (flood >> 7) & mask;
+        }
+        (flood >> 7) * self.clear_file[0]
+    }
+
+    /// Calculates all west attacks using dumb7fill
+    ///
+    /// Args:
+    ///   sliders: bits set wherever attacking pieces are
+    ///   empty: bits set at all empty squares
+    pub fn west_attacks(&self, sliders: u64, empty: u64) -> u64 {
+        let mut flood = sliders;
+        let mask = empty & self.clear_file[7];
+        for _ in 0..7 {
+            flood |= (flood >> 1) & mask;
+        }
+        (flood >> 1) * self.clear_file[7]
+    }
+
+    /// Calculates all south west attacks using dumb7fill
+    ///
+    /// Args:
+    ///   sliders: bits set wherever attacking pieces are
+    ///   empty: bits set at all empty squares
+    pub fn south_west_attacks(&self, sliders: u64, empty: u64) -> u64 {
+        let mut flood = sliders;
+        let mask = empty & self.clear_file[7];
+        for _ in 0..7 {
+            flood |= (flood >> 9) & mask;
+        }
+        (flood >> 9) * self.clear_file[7]
+    }
+
+    /// Calculates all north west attacks using dumb7fill
+    ///
+    /// Args:
+    ///   sliders: bits set wherever attacking pieces are
+    ///   empty: bits set at all empty squares
+    pub fn north_west_attacks(&self, sliders: u64, empty: u64) -> u64 {
+        let mut flood = sliders;
+        let mask = empty & self.clear_file[7];
+        for _ in 0..7 {
+            flood |= (flood >> 1) & mask;
+        }
+        (flood >> 1) * self.clear_file[7]
+    }
+
 
 
 }
