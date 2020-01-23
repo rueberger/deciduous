@@ -76,14 +76,14 @@ pub struct Board {
     //          -9    -8    -7
     //  soWe         sout         soEa
     //
-    pub north: [u64; 64],
-    pub north_west: [u64; 64],
-    pub west: [u64; 64],
-    pub south_west: [u64; 64],
-    pub south: [u64; 64],
-    pub south_east: [u64; 64],
-    pub east: [u64; 64],
-    pub north_east: [u64; 64],
+    north: [u64; 64],
+    north_west: [u64; 64],
+    west: [u64; 64],
+    south_west: [u64; 64],
+    south: [u64; 64],
+    south_east: [u64; 64],
+    east: [u64; 64],
+    north_east: [u64; 64],
 
     //  Knight compass rose:
     //
@@ -141,10 +141,10 @@ impl Board {
 
         // diagonal rays
         for idx in 0..64 {
-            self.north_east[idx] = (1 << idx);
-            self.north_west[idx] = (1 << idx);
-            self.south_east[idx] = (1 << idx);
-            self.south_west[idx] = (1 << idx);
+            self.north_east[idx] = 1 << idx;
+            self.north_west[idx] = 1 << idx;
+            self.south_east[idx] = 1 << idx;
+            self.south_west[idx] = 1 << idx;
 
             for _ in 0..8 {
                 self.north_east[idx] |= (self.north_east[idx] & self.clear_file[7]) << 9;
@@ -161,7 +161,7 @@ impl Board {
 
         // initialize knight movement tables
         for idx in 0..64 {
-            let sq = (1 << idx);
+            let sq = 1 << idx;
 
             self.knight_moves[idx] |= (sq << 17) & self.clear_file[0];
             self.knight_moves[idx] |= (sq << 10) & (self.clear_file[0] & self.clear_file[1]);
@@ -174,6 +174,19 @@ impl Board {
         }
     }
 
+
+    pub fn ray(&self, sq_idx: usize, orientation: Orientation) -> u64 {
+        match orientation {
+            Orientation::North => return self.north[sq_idx],
+            Orientation::NorthEast => return self.north_east[sq_idx],
+            Orientation::East => return self.east[sq_idx],
+            Orientation::SouthEast => return self.south_east[sq_idx],
+            Orientation::South => return self.south[sq_idx],
+            Orientation::SouthWest => return self.south_west[sq_idx],
+            Orientation::West => return self.west[sq_idx],
+            Orientation::NorthWest => return self.north_west[sq_idx]
+        }
+    }
 }
 
 pub fn init_board() -> Board {
@@ -355,6 +368,17 @@ impl Piece {
             Piece::Queen => 7
         }
     }
+}
+
+enum Orientation {
+    North,
+    NorthEast,
+    East,
+    SouthEast,
+    South,
+    SouthWest,
+    West,
+    NorthWest
 }
 
 #[cfg(test)]
