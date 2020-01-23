@@ -39,6 +39,18 @@ fn main() {
     println!("Kings:\n{}", render_board(b.bitboard[6]));
     println!("Queens:\n{}", render_board(b.bitboard[7]));
 
+    for idx in 0..64 {
+        println!("Ray {}\n =========================================", idx);
+        // println!("north:\n{}", render_board(b.north[idx]));
+        // println!("south:\n{}", render_board(b.south[idx]));
+        // println!("west:\n{}", render_board(b.west[idx]));
+        // println!("east:\n{}", render_board(b.east[idx]));
+        println!("north east:\n{}", render_board(b.north_east[idx]));
+        println!("north west:\n{}", render_board(b.north_west[idx]));
+        println!("south west:\n{}", render_board(b.south_west[idx]));
+        println!("south east:\n{}", render_board(b.south_east[idx]));
+    }
+
 }
 
 
