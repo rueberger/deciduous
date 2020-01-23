@@ -196,6 +196,19 @@ impl MoveGen {
         flood >> 8
     }
 
+    /// Calculates all south west attacks using dumb7fill
+    ///
+    /// Args:
+    ///   sliders: bits set wherever attacking pieces are
+    ///   empty: bits set at all empty squares
+    pub fn south_west_attacks(&self, sliders: u64, empty: u64) -> u64 {
+        let mut flood = sliders;
+        let mask = empty & self.clear_file[7];
+        for _ in 0..7 {
+            flood |= (flood >> 9) & mask;
+        }
+        (flood >> 9) & self.clear_file[7]
+    }
 
     /// Calculates all west attacks using dumb7fill
     ///
@@ -249,6 +262,35 @@ impl MoveGen {
         let left_moves = (own_pawns << 7) & self.clear_file[7];
         (right_moves & board.opp_pieces) | (left_moves & board.opp_pieces)
     }
+
+    // TODO: treat en passant and promotion
+
+    // =================================
+    //         SLIDING MOVE GEN
+    // =================================
+
+    /// Return all possible orthogonal moves, including captures
+    pub fn ortho_attacks(&self, board: Board) -> u64 {
+        let empty = !(board.own_pieces & board.opp_pieces);
+        (
+            self.north_attacks(board.ortho_sliders, empty) |
+            self.east_attacks(board.ortho_sliders, empty) |
+            self.south_attacks(board.ortho_sliders, empty) |
+            self.west_attacks(board.ortho_sliders, empty)
+        )
+    }
+
+    /// Return all possible diagonal moves, including captures
+    pub fn diag_attacks(&self, board: Board) -> u64 {
+        let empty = !(board.own_pieces & board.opp_pieces);
+        (
+            self.north_east_attacks(board.ortho_sliders, empty) |
+            self.south_east_attacks(board.ortho_sliders, empty) |
+            self.south_west_attacks(board.ortho_sliders, empty) |
+            self.north_west_attacks(board.ortho_sliders, empty)
+        )
+    }
+
 }
 
 pub fn init_move_gen() -> MoveGen {
