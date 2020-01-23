@@ -188,19 +188,35 @@ impl Board {
         }
     }
 
-    /// Calculates all north attacks
+
+    /// Calculates all north attacks using dumb7fill
+    ///
     /// Args:
     ///   sliders: bits set wherever attacking pieces are
     ///   empty: bits set at all empty squares
-    pub north_attacks(&self, sliders: u64, empty: u64) -> u64 {
+    pub fn north_attacks(&self, sliders: u64, empty: u64) -> u64 {
         let mut flood = sliders;
-        for _ in 0..6 {
-            flood |= (sliders >> 8) & empty;
+        for _ in 0..7 {
+            flood |= (flood << 8) & empty;
+        }
+        flood << 8
+    }
+
+    /// Calculates all south attacks using dumb7fill
+    ///
+    /// Args:
+    ///   sliders: bits set wherever attacking pieces are
+    ///   empty: bits set at all empty squares
+    pub fn south_attacks(&self, sliders: u64, empty: u64) -> u64 {
+        let mut flood = sliders;
+        for _ in 0..7 {
+            flood |= (flood >> 8) & empty;
         }
         flood >> 8
     }
-}
 
+
+}
 
 pub fn init_board() -> Board {
     let mut board = Board {
