@@ -187,7 +187,20 @@ impl Board {
             Orientation::NorthWest => return self.north_west[sq_idx]
         }
     }
+
+    /// Calculates all north attacks
+    /// Args:
+    ///   sliders: bits set wherever attacking pieces are
+    ///   empty: bits set at all empty squares
+    pub north_attacks(&self, sliders: u64, empty: u64) -> u64 {
+        let mut flood = sliders;
+        for _ in 0..6 {
+            flood |= (sliders >> 8) & empty;
+        }
+        flood >> 8
+    }
 }
+
 
 pub fn init_board() -> Board {
     let mut board = Board {
