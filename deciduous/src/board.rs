@@ -4,6 +4,9 @@
 /// occupancy of the corresponding square.
 /// Supports only little-endian architectures
 
+use std::mem;
+use crate::moves::*;
+
 // Some magic constants
 // Initial configuration of white
 static WHITE_PIECES: u64 = 65535;
@@ -47,6 +50,13 @@ pub fn file_idx(square_idx: u8) -> u8 {
     square_idx & 7
 }
 
+// TODO: optimize, there should be an explicit form
+/// Return square index after flipping about the horizontal axis
+pub fn flip_square_index(sq_idx: u8) -> u8 {
+    let flipped = ((1 as u64) << sq_idx).to_be();
+    return bitscan_lsd(flipped).unwrap()
+}
+
 pub struct Board {
     pub own_pieces: u64,
     pub opp_pieces: u64,
@@ -59,7 +69,24 @@ pub struct Board {
     pub opp_king: u8,
     pub own_castling_rights: CastlingRights,
     pub opp_castling_rights: CastlingRights,
-    pub white_to_move: bool
+    pub flipped: bool
+}
+
+impl Board {
+    // TODO: add tests
+    pub fn color_flip(&mut self) {
+        self.own_pieces = self.own_pieces.to_be();
+        self.opp_pieces = self.opp_pieces.to_be();
+        mem::swap(&mut self.own_pieces, &mut self.opp_pieces);
+        self.ortho_sliders = self.ortho_sliders.to_be();
+        self.diag_sliders = self.ortho_sliders.to_be();
+        self.pawns = self.pawns.to_be();
+        self.own_king = flip_square_index(self.own_king);
+        self.opp_king = flip_square_index(self.opp_king);
+        mem::swap(&mut self.own_king, &mut self.opp_king);
+        mem::swap(&mut self.own_castling_rights, &mut self.opp_castling_rights);
+        self.flipped = !self.flipped;
+    }
 }
 
 pub struct CastlingRights {
@@ -74,8 +101,8 @@ pub fn init_board() -> Board {
         ortho_sliders: ROOKS | QUEENS,
         diag_sliders: BISHOPS | QUEENS,
         pawns: PAWNS,
-        own_king: square_index(0, 4),
-        opp_king: square_index(7, 4),
+        own_king: square_index(0, 4) as u8,
+        opp_king: square_index(7, 4) as u8,
         own_castling_rights: CastlingRights {
             kingside: true,
             queenside: true
@@ -84,10 +111,12 @@ pub fn init_board() -> Board {
             kingside: true,
             queenside: true
         },
-        white_to_move: true
-    }
+        flipped: false
+    };
     board
 }
+
+
 
 
 #[cfg(test)]
