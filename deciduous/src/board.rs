@@ -225,7 +225,7 @@ impl Board {
         for _ in 0..7 {
             flood |= (flood << 1) & mask;
         }
-        (flood << 1) * self.clear_file[0]
+        (flood << 1) & self.clear_file[0]
     }
 
     /// Calculates all north east attacks using dumb7fill
@@ -239,7 +239,7 @@ impl Board {
         for _ in 0..7 {
             flood |= (flood << 9) & mask;
         }
-        (flood << 9) * self.clear_file[0]
+        (flood << 9) & self.clear_file[0]
     }
 
     /// Calculates all south east attacks using dumb7fill
@@ -253,7 +253,7 @@ impl Board {
         for _ in 0..7 {
             flood |= (flood >> 7) & mask;
         }
-        (flood >> 7) * self.clear_file[0]
+        (flood >> 7) & self.clear_file[0]
     }
 
     /// Calculates all west attacks using dumb7fill
@@ -267,7 +267,7 @@ impl Board {
         for _ in 0..7 {
             flood |= (flood >> 1) & mask;
         }
-        (flood >> 1) * self.clear_file[7]
+        (flood >> 1) & self.clear_file[7]
     }
 
     /// Calculates all south west attacks using dumb7fill
@@ -281,7 +281,7 @@ impl Board {
         for _ in 0..7 {
             flood |= (flood >> 9) & mask;
         }
-        (flood >> 9) * self.clear_file[7]
+        (flood >> 9) & self.clear_file[7]
     }
 
     /// Calculates all north west attacks using dumb7fill
@@ -295,7 +295,7 @@ impl Board {
         for _ in 0..7 {
             flood |= (flood >> 1) & mask;
         }
-        (flood >> 1) * self.clear_file[7]
+        (flood >> 1) & self.clear_file[7]
     }
 
 
