@@ -42,11 +42,11 @@ pub fn square_index(rank_idx: u8, file_idx: u8) -> usize {
     (rank_idx * 8 + file_idx) as usize
 }
 
-pub fn rank_idx(square_idx: u8) -> u8 {
+pub fn rank_index(square_idx: u8) -> u8 {
     square_idx >> 3
 }
 
-pub fn file_idx(square_idx: u8) -> u8 {
+pub fn file_index(square_idx: u8) -> u8 {
     square_idx & 7
 }
 
@@ -55,9 +55,9 @@ pub fn file_idx(square_idx: u8) -> u8 {
 /// diagonal indices have range 0..15
 /// ordering from top-left to bottom-right:
 /// 7 6 5 4 3 2 1 0 15 14 13 12 11 10 9
-pub fn diag_idx(square_idx: u8) -> u8 {
-    let rank = rank_idx(square_idx);
-    let file = file_idx(square_idx);
+pub fn diag_index(square_idx: u8) -> u8 {
+    let rank = rank_index(square_idx);
+    let file = file_index(square_idx);
     (rank - file) & 15
 }
 
@@ -66,9 +66,9 @@ pub fn diag_idx(square_idx: u8) -> u8 {
 /// anti-diagonal indices have range 0..15
 /// ordering from bottom-left to top-right:
 /// 7 6 5 4 3 2 1 0 15 14 13 12 11 10 9
-pub fn anti_diag_idx(square_idx: u8) -> u8 {
-    let rank = rank_idx(square_idx);
-    let file = file_idx(square_idx);
+pub fn anti_diag_index(square_idx: u8) -> u8 {
+    let rank = rank_index(square_idx);
+    let file = file_index(square_idx);
     (rank + file) ^ 7
 }
 
@@ -177,8 +177,8 @@ mod tests {
     #[test]
     fn test_idx_bijection() {
         for sq_idx in 0..63 {
-            let rank = rank_idx(sq_idx);
-            let file = file_idx(sq_idx);
+            let rank = rank_index(sq_idx);
+            let file = file_index(sq_idx);
             assert_eq!(square_index(rank, file), sq_idx)
         }
     }

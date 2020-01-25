@@ -269,6 +269,7 @@ impl MoveGen {
     //         SLIDING MOVE GEN
     // =================================
 
+    // TODO: deprecate, kinda useless when generating multiple directions at once
     /// Return all possible orthogonal moves, including captures
     pub fn ortho_attacks(&self, board: Board) -> u64 {
         let empty = !(board.own_pieces & board.opp_pieces);
