@@ -50,6 +50,29 @@ pub fn file_idx(square_idx: u8) -> u8 {
     square_idx & 7
 }
 
+/// Returns the index of the diagonal square_idx lies on
+/// diagonals run along a northwest/southeast heading
+/// diagonal indices have range 0..15
+/// ordering from top-left to bottom-right:
+/// 7 6 5 4 3 2 1 0 15 14 13 12 11 10 9
+pub fn diag_idx(square_idx: u8) -> u8 {
+    let rank = rank_idx(square_idx);
+    let file = file_idx(square_idx);
+    (rank - file) & 15
+}
+
+/// Returns the index of the anti-diagonal square_idx lies on
+/// anti-diagonals run along a northeast/southwest heading
+/// anti-diagonal indices have range 0..15
+/// ordering from bottom-left to top-right:
+/// 7 6 5 4 3 2 1 0 15 14 13 12 11 10 9
+pub fn anti_diag_idx(square_idx: u8) -> u8 {
+    let rank = rank_idx(square_idx);
+    let file = file_idx(square_idx);
+    (rank + file) ^ 7
+}
+
+
 // TODO: optimize, there should be an explicit form
 // looks like sq_idx ^ 0b111000 does the trick
 /// Return square index after flipping about the horizontal axis
