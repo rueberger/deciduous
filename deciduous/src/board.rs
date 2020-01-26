@@ -113,6 +113,10 @@ impl Board {
         self.flipped = !self.flipped;
     }
 
+    pub fn empty(&self) -> u64 {
+        !(self.own_pieces & self.opp_pieces)
+    }
+
     pub fn rooks(&self) -> u64 {
         self.ortho_sliders & !self.diag_sliders
     }
