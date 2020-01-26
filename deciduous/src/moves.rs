@@ -69,7 +69,7 @@ impl MoveGen {
             for file in 0..8 {
                 let vertical = self.mask_file[file] & self.clear_rank[rank];
                 let horizontal = self.mask_rank[rank] & self.clear_file[file];
-                let idx = square_index(rank as u8, file as u8);
+                let idx = square_index(rank as u8, file as u8) as usize;
 
                 self.north[idx] = rank_range(rank as u8, 7) & vertical;
                 self.south[idx] = rank_range(0, rank as u8) & vertical;
@@ -388,6 +388,7 @@ fn file_range(start: u8, end: u8) -> u64 {
 // TODO: optimize. so many more sophisticated approaches
 // easy speed up is divide and conquer with same strat
 // much fancier is magic hashing stuff
+// TODO: would it be faster to return a slice from a 64 len arr?
 pub fn serialize_board(mut state: u64) -> Vec<u8> {
     let mut occupied = Vec::new();
 
@@ -443,4 +444,45 @@ enum Orientation {
     SouthWest,
     West,
     NorthWest
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_fill_rank_0() {
+        assert_eq!(fill_rank(0), FIRST_RANK);
+    }
+
+    #[test]
+    fn test_fill_file_0() {
+        assert_eq!(fill_file(0), A_FILE)
+    }
+
+    #[test]
+    fn test_bitscan_lsd() {
+        assert_eq!(Some(1), bitscan_lsd(1 << 1));
+        assert_eq!(Some(63), bitscan_lsd(1 << 63));
+        assert_eq!(Some(1), bitscan_lsd((1 << 1) ^ (1 << 5)));
+        assert_eq!(None, bitscan_lsd(0));
+    }
+
+    #[test]
+    fn test_serialize_board(){
+        let mut test_vec = Vec::new();
+        let mut test_board = 0;
+        assert_eq!(test_vec, serialize_board(test_board));
+
+        test_vec.push(1);
+        test_board |= 1 << 1;
+        assert_eq!(test_vec, serialize_board(test_board));
+
+        test_vec.push(5);
+        test_board |= 1 << 5;
+        assert_eq!(test_vec, serialize_board(test_board));
+
+    }
+
 }

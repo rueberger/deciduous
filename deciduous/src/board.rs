@@ -36,10 +36,10 @@ static UNIVERSAL_SET: u64 = 18446744073709551615;
 /// 3: A B C D E F G H | 16 17 18 19 20 21 22 23
 /// ...
 /// 8: A B C D E F G H | 56 57 58 59 60 61 62 63
-pub fn square_index(rank_idx: u8, file_idx: u8) -> usize {
+pub fn square_index(rank_idx: u8, file_idx: u8) -> u8 {
     assert!((rank_idx < 8) & (file_idx < 8));
 
-    (rank_idx * 8 + file_idx) as usize
+    rank_idx * 8 + file_idx
 }
 
 pub fn rank_index(square_idx: u8) -> u8 {
@@ -167,29 +167,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_bitscan_lsd() {
-        assert_eq!(Some(1), bitscan_lsd(1 << 1));
-        assert_eq!(Some(63), bitscan_lsd(1 << 63));
-        assert_eq!(Some(1), bitscan_lsd((1 << 1) ^ (1 << 5)));
-        assert_eq!(None, bitscan_lsd(0));
-    }
-
-    #[test]
     fn test_idx_bijection() {
         for sq_idx in 0..63 {
             let rank = rank_index(sq_idx);
             let file = file_index(sq_idx);
-            assert_eq!(square_index(rank, file), sq_idx)
+            assert_eq!(square_index(rank, file), sq_idx as u8)
         }
     }
 
-    #[test]
-    fn test_fill_rank_0() {
-        assert_eq!(fill_rank(0), FIRST_RANK);
-    }
-
-    #[test]
-    fn test_fill_file_0() {
-        assert_eq!(fill_file(0), A_FILE)
-    }
 }

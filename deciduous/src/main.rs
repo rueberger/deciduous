@@ -31,6 +31,7 @@ fn main() {
     println!("White:\n{}", render_board(b.own_pieces));
     b.color_flip();
     println!("White flipped:\n{}", render_board(b.own_pieces));
+    println!("{}", moves::serialize_board(b.own_pieces).as_slice()[12]);
 
 }
 
