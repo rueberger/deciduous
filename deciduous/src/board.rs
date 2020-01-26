@@ -54,23 +54,22 @@ pub fn file_index(square_idx: u8) -> u8 {
 /// diagonals run along a northwest/southeast heading
 /// diagonal indices have range 0..15
 /// ordering from top-left to bottom-right:
-/// 7 6 5 4 3 2 1 0 15 14 13 12 11 10 9
+/// 14 13 12 11 10 9 8 7 6 5 4 3 2 1 0
 pub fn diag_index(square_idx: u8) -> u8 {
-    // NOTE: cast to i8 to avoid overflow panics
     let rank = rank_index(square_idx) as i8;
     let file = file_index(square_idx) as i8;
-    ((rank - file) & 15) as u8
+    (7 + rank - file) as u8
 }
 
 /// Returns the index of the anti-diagonal square_idx lies on
 /// anti-diagonals run along a northeast/southwest heading
 /// anti-diagonal indices have range 0..15
 /// ordering from bottom-left to top-right:
-/// 7 6 5 4 3 2 1 0 15 14 13 12 11 10 9
+/// 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14
 pub fn anti_diag_index(square_idx: u8) -> u8 {
     let rank = rank_index(square_idx);
     let file = file_index(square_idx);
-    (rank + file) ^ 7
+    rank + file
 }
 
 

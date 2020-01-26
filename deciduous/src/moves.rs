@@ -19,8 +19,8 @@ pub struct MoveGen {
     pub clear_file: [u64; 8],
     pub mask_rank: [u64; 8],
     pub mask_file: [u64; 8],
-    pub mask_diag: [u64; 16],
-    pub mask_anti_diag: [u64; 16],
+    pub mask_diag: [u64; 14],
+    pub mask_anti_diag: [u64; 14],
 
     // Each value is the eponymous ray for that square
     //  Allowed values of orientation:
@@ -390,8 +390,8 @@ pub fn init_move_gen() -> MoveGen {
         clear_file: [0; 8],
         mask_rank: [0; 8],
         mask_file: [0; 8],
-        mask_diag: [0; 16],
-        mask_anti_diag: [0; 16],
+        mask_diag: [0; 14],
+        mask_anti_diag: [0; 14],
         north: [0; 64],
         north_west: [0; 64],
         west: [0; 64],
@@ -503,24 +503,31 @@ pub fn serialize_board(mut state: u64) -> Vec<u8> {
     occupied
 }
 
-// /// Parse a bitboard of sliding moves for a single orientation into a vector of (from, to) coordinates
-// /// Handles colinear pieces
-// pub fn parse_sliding_moves(moves: u64, pieces: u64, orientation: Orientation) -> Vec<(u8, u8)> {
-//     // 1. sort pieces
-//     let piece_idxs = serialize_board(pieces);
-//     let piece_occupancy: [bool; 16] = [false; 16];
+/// Parse a bitboard of sliding moves for a single orientation into a vector of (from, to) coordinates
+/// Handles colinear pieces
+pub fn parse_sliding_moves(moves: u64, pieces: u64, orientation: Orientation) -> Vec<(u8, u8)> {
+    // 1. sort pieces
+    // this is just a really unnecessarily complicated sort
+    let piece_idxs = serialize_board(pieces);
+    let piece_occupancy: [bool; 16] = [false; 16];
 
-//     for piece_idx in piece_idxs.iter() {
-//         match orientation {
-//         }
-//     }
+    for piece_idx in piece_idxs.iter() {
+        match orientation.axis() {
+            Axis::Horizontal => {
+                piece_occupancy[file_index(*piece_idx) as usize] = true;
+            }
+            Axis::Vertical => {
+                piece_occupancy[rank_index(*piece_idx) as usize] = true;
+            }
+        }
+    }
 
-//     // 2. generate up to 3 masks
-//     // 3. call 1 of 4 directional coordinate generators
-//     // required functions:
-//     //  - popcnt
-//     //
-// }
+    // 2. generate up to 3 masks
+    // 3. call 1 of 4 directional coordinate generators
+    // required functions:
+    //  - popcnt
+    //
+}
 
 
 // TODO: optimize, currently uses naive implementation
@@ -600,6 +607,7 @@ impl Orientation {
 }
 
 
+// TODO: move test module to descendent of move gen module to test private details
 #[cfg(test)]
 mod tests {
     use super::*;
