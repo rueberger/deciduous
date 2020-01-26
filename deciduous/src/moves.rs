@@ -131,7 +131,7 @@ impl MoveGen {
     }
 
     // TODO: deprecate? kinda useless
-    pub fn ray(&self, sq_idx: usize, orientation: Orientation) -> u64 {
+    pub fn ray(&self, sq_idx: usize, orientation: &Orientation) -> u64 {
         match orientation {
             Orientation::North => return self.north[sq_idx],
             Orientation::NorthEast => return self.north_east[sq_idx],
@@ -315,7 +315,7 @@ impl MoveGen {
     /// Parse a bitboard of sliding moves for a single orientation into a vector of (from, to) coordinates
     /// Handles colinear pieces
     fn parse_sliding_moves(&self, moves: u64, pieces: u64, orientation: Orientation) -> Vec<(u8, u8)> {
-        let move_list = Vec::new();
+        let mut move_list = Vec::new();
 
         // 1. sort pieces
         // this is just a really unnecessarily complicated sort
@@ -354,10 +354,10 @@ impl MoveGen {
 
         // 2. generate up to 3 masks
         // the first mask requires special handling
-        masks.push(self.ray(sorted_piece_idxs[0] as usize, orientation));
+        masks.push(self.ray(sorted_piece_idxs[0] as usize, &orientation));
         for idx in 1..sorted_piece_idxs.len() {
-            forward_mask = self.ray(sorted_piece_idxs[idx] as usize, orientation);
-            backward_mask = self.ray(sorted_piece_idxs[idx - 1] as usize, orientation.antipode());
+            let forward_mask = self.ray(sorted_piece_idxs[idx] as usize, &orientation);
+            let backward_mask = self.ray(sorted_piece_idxs[idx - 1] as usize, &orientation.antipode());
             masks.push(forward_mask & backward_mask)
         }
 
@@ -366,7 +366,7 @@ impl MoveGen {
         for idx in 0..sorted_piece_idxs.len() {
             let piece_idx = sorted_piece_idxs[idx];
             let masked = masks[idx] & moves;
-            move_list.append(parse_single_piece_moves(masked, piece_idx))
+            move_list.append(&mut self.parse_single_piece_moves(masked, piece_idx))
         }
         move_list
     }
