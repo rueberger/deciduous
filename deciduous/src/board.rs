@@ -130,6 +130,13 @@ impl Board {
         let other_pieces = self.ortho_sliders | self.diag_sliders | self.pawns | kings;
         (self.own_pieces | self.opp_pieces) & !other_pieces
     }
+
+    pub fn color(&self) -> Color {
+        match self.flipped {
+            false => Color::White,
+            true => Color::Black
+        }
+    }
 }
 
 pub struct CastlingRights {
