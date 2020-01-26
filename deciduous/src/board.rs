@@ -56,9 +56,10 @@ pub fn file_index(square_idx: u8) -> u8 {
 /// ordering from top-left to bottom-right:
 /// 7 6 5 4 3 2 1 0 15 14 13 12 11 10 9
 pub fn diag_index(square_idx: u8) -> u8 {
-    let rank = rank_index(square_idx);
-    let file = file_index(square_idx);
-    (rank - file) & 15
+    // NOTE: cast to i8 to avoid overflow panics
+    let rank = rank_index(square_idx) as i8;
+    let file = file_index(square_idx) as i8;
+    ((rank - file) & 15) as u8
 }
 
 /// Returns the index of the anti-diagonal square_idx lies on
