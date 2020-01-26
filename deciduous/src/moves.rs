@@ -385,6 +385,20 @@ fn file_range(start: u8, end: u8) -> u64 {
     return result;
 }
 
+// TODO: optimize. so many more sophisticated approaches
+// easy speed up is divide and conquer with same strat
+// much fancier is magic hashing stuff
+pub fn serialize_board(mut state: u64) -> Vec<u8> {
+    let mut occupied = Vec::new();
+
+    while state != 0 {
+        let occ_idx = bitscan_lsd(state).unwrap();
+        occupied.push(occ_idx);
+        state ^= 1 << occ_idx
+    }
+    occupied
+}
+
 /// Return square index of first set bit
 /// If no bit is set returns None
 pub fn bitscan_lsd(state: u64) -> Option<u8> {
@@ -395,6 +409,8 @@ pub fn bitscan_lsd(state: u64) -> Option<u8> {
         return Some(trailing)
     }
 }
+
+
 
 struct Move {
     from: u8, // integer 0-63
