@@ -1,6 +1,7 @@
 /// Module containing all move generation logic
 
 use crate::board::*;
+use crate::utils::*;
 
 // All bits set in the a-file
 static A_FILE: u64 = 0x0101010101010101;
@@ -506,6 +507,14 @@ pub fn serialize_board(mut state: u64) -> Vec<u8> {
 // /// Handles colinear pieces
 // pub fn parse_sliding_moves(moves: u64, pieces: u64, orientation: Orientation) -> Vec<(u8, u8)> {
 //     // 1. sort pieces
+//     let piece_idxs = serialize_board(pieces);
+//     let piece_occupancy: [bool; 16] = [false; 16];
+
+//     for piece_idx in piece_idxs.iter() {
+//         match orientation {
+//         }
+//     }
+
 //     // 2. generate up to 3 masks
 //     // 3. call 1 of 4 directional coordinate generators
 //     // required functions:
@@ -541,6 +550,13 @@ enum Piece {
     Queen
 }
 
+enum Axis {
+    Horizontal,
+    Vertical,
+    Diagonal,
+    AntiDiagonal
+}
+
 enum Orientation {
     North,
     NorthEast,
@@ -554,7 +570,7 @@ enum Orientation {
 
 impl Orientation {
 
-    /// Returns the opposite direction
+    /// Returns the opposite orientation
     pub fn antipode(&self) -> Orientation {
         match self {
             Orientation::North => Orientation::South,
@@ -565,6 +581,20 @@ impl Orientation {
             Orientation::SouthWest => Orientation::NorthEast,
             Orientation::West => Orientation::East,
             Orientation::NorthWest => Orientation::SouthEast
+        }
+    }
+
+    /// Returns the axis this orientation lies along
+    pub fn axis(&self) -> Axis {
+        match self {
+            Orientation::North => Axis::Vertical,
+            Orientation::NorthEast => Axis::Diagonal,
+            Orientation::East => Axis::Horizontal,
+            Orientation::SouthEast => Axis::AntiDiagonal,
+            Orientation::South => Axis::Vertical,
+            Orientation::SouthWest => Axis::Diagonal,
+            Orientation::West => Axis::Horizontal,
+            Orientation::NorthWest => Axis::AntiDiagonal
         }
     }
 }
