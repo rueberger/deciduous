@@ -6,6 +6,10 @@ use crate::board::*;
 static A_FILE: u64 = 0x0101010101010101;
 // All bits set in the 1st-rank
 static FIRST_RANK: u64 = 0x00000000000000FF;
+// All bits set from a1-h8
+static DIAGONAL: u64 = 0x8040201008040201;
+// All bits set from a8-h1
+static ANTI_DIAGONAL: u64 = 0x0102040810204080;
 
 /// This struct holds state required for move generation (tables)
 pub struct MoveGen {
@@ -14,6 +18,8 @@ pub struct MoveGen {
     pub clear_file: [u64; 8],
     pub mask_rank: [u64; 8],
     pub mask_file: [u64; 8],
+    pub mask_diag: [u64; 16],
+    pub mask_anti_diag: [u64; 16],
 
     // Each value is the eponymous ray for that square
     //  Allowed values of orientation:
@@ -55,12 +61,21 @@ impl MoveGen {
 
     /// Initialize tables
     pub fn initialize(&mut self) {
-        // initialize mask tables
+        // initialize orthogonal mask tables
         for idx in 0..8 {
             self.mask_rank[idx] = fill_rank(idx as u8);
             self.mask_file[idx]= fill_file(idx as u8);
             self.clear_rank[idx] = !self.mask_rank[idx];
             self.clear_file[idx] = !self.mask_file[idx];
+        }
+
+        // initialize diagonal mask tables
+        for idx in 0..64 {
+            let diag_idx = diag_index(idx);
+            let anti_diag_idx = anti_diag_index(idx);
+
+            self.mask_diag[diag_idx as usize] |= 1 << idx;
+            self.mask_anti_diag[anti_diag_idx as usize]|= 1 << idx;
         }
 
         // initialize ray tables
@@ -337,6 +352,8 @@ pub fn init_move_gen() -> MoveGen {
         clear_file: [0; 8],
         mask_rank: [0; 8],
         mask_file: [0; 8],
+        mask_diag: [0; 16],
+        mask_anti_diag: [0; 16],
         north: [0; 64],
         north_west: [0; 64],
         west: [0; 64],

@@ -27,6 +27,8 @@ fn render_board(state: u64) -> String {
 
 fn main() {
     let mut b = board::init_board();
+    let mut move_gen = moves::init_move_gen();
+    move_gen.initialize();
 
     println!("White:\n{}", render_board(b.own_pieces));
     b.color_flip();
