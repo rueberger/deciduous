@@ -552,6 +552,23 @@ enum Orientation {
     NorthWest
 }
 
+impl Orientation {
+
+    /// Returns the opposite direction
+    pub fn antipode(&self) -> Orientation {
+        match self {
+            Orientation::North => Orientation::South,
+            Orientation::NorthEast => Orientation::SouthWest,
+            Orientation::East => Orientation::West,
+            Orientation::SouthEast => Orientation::NorthWest,
+            Orientation::South => Orientation::North,
+            Orientation::SouthWest => Orientation::NorthEast,
+            Orientation::West => Orientation::East,
+            Orientation::NorthWest => Orientation::SouthEast
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
