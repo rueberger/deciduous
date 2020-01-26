@@ -19,8 +19,8 @@ pub struct MoveGen {
     pub clear_file: [u64; 8],
     pub mask_rank: [u64; 8],
     pub mask_file: [u64; 8],
-    pub mask_diag: [u64; 14],
-    pub mask_anti_diag: [u64; 14],
+    pub mask_diag: [u64; 15],
+    pub mask_anti_diag: [u64; 15],
 
     // Each value is the eponymous ray for that square
     //  Allowed values of orientation:
@@ -390,8 +390,8 @@ pub fn init_move_gen() -> MoveGen {
         clear_file: [0; 8],
         mask_rank: [0; 8],
         mask_file: [0; 8],
-        mask_diag: [0; 14],
-        mask_anti_diag: [0; 14],
+        mask_diag: [0; 15],
+        mask_anti_diag: [0; 15],
         north: [0; 64],
         north_west: [0; 64],
         west: [0; 64],
@@ -503,30 +503,60 @@ pub fn serialize_board(mut state: u64) -> Vec<u8> {
     occupied
 }
 
+// TODO: test
+// TODO: worth it to check for colinearity to call a simpler routine?
+// TODO: profile how much all these conditionals cost us
 /// Parse a bitboard of sliding moves for a single orientation into a vector of (from, to) coordinates
 /// Handles colinear pieces
-pub fn parse_sliding_moves(moves: u64, pieces: u64, orientation: Orientation) -> Vec<(u8, u8)> {
+fn parse_sliding_moves(moves: u64, pieces: u64, orientation: Orientation) -> Vec<(u8, u8)> {
+    let move_list = Vec::new();
+
     // 1. sort pieces
     // this is just a really unnecessarily complicated sort
     let piece_idxs = serialize_board(pieces);
-    let piece_occupancy: [bool; 16] = [false; 16];
+    let mut axis_wise: [Option<u8>; 15] = [None; 15];
 
     for piece_idx in piece_idxs.iter() {
         match orientation.axis() {
-            Axis::Horizontal => {
-                piece_occupancy[file_index(*piece_idx) as usize] = true;
+            Axis::Rank => {
+                axis_wise[file_index(*piece_idx) as usize] = Some(*piece_idx);
             }
-            Axis::Vertical => {
-                piece_occupancy[rank_index(*piece_idx) as usize] = true;
+            Axis::File => {
+                axis_wise[rank_index(*piece_idx) as usize] = Some(*piece_idx);
+            }
+            Axis::Diagonal => {
+                axis_wise[anti_diag_index(*piece_idx) as usize] = Some(*piece_idx);
+            }
+            Axis::AntiDiagonal => {
+                axis_wise[diag_index(*piece_idx) as usize] = Some(*piece_idx);
             }
         }
     }
 
+    // indices of pieces along the current axis
+    let mut sorted_piece_idxs = bad_argsort(axis_wise.to_vec());
+    let mut masks: [u64; 3] = [0; 3];
+
+    // TODO: must be extremely careful about sort order
+
+
+    // some directions require sorted_piece_idxs to be reversed
+    match orientation {
+        Orientation::North => sorted_piece_idxs.reverse(),
+        Orientation::East => sorted_piece_idxs.reverse(),
+        Orientation::NorthEast => sorted_piece_idxs.reverse(),
+        Orientation::NorthWest => sorted_piece_idxs.reverse(),
+        _ => (),
+    }
+
     // 2. generate up to 3 masks
+
+
     // 3. call 1 of 4 directional coordinate generators
     // required functions:
     //  - popcnt
     //
+    move_list
 }
 
 
@@ -558,8 +588,10 @@ enum Piece {
 }
 
 enum Axis {
-    Horizontal,
-    Vertical,
+    // horizontal
+    Rank,
+    // vertical
+    File,
     Diagonal,
     AntiDiagonal
 }
@@ -594,13 +626,13 @@ impl Orientation {
     /// Returns the axis this orientation lies along
     pub fn axis(&self) -> Axis {
         match self {
-            Orientation::North => Axis::Vertical,
+            Orientation::North => Axis::File,
             Orientation::NorthEast => Axis::Diagonal,
-            Orientation::East => Axis::Horizontal,
+            Orientation::East => Axis::Rank,
             Orientation::SouthEast => Axis::AntiDiagonal,
-            Orientation::South => Axis::Vertical,
+            Orientation::South => Axis::File,
             Orientation::SouthWest => Axis::Diagonal,
-            Orientation::West => Axis::Horizontal,
+            Orientation::West => Axis::Rank,
             Orientation::NorthWest => Axis::AntiDiagonal
         }
     }
