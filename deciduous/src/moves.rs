@@ -343,6 +343,43 @@ impl MoveGen {
         move_list
     }
 
+    // TODO: check validity of pieces?
+    /// Parse a bitboard of diagonal moves into a move list
+    /// All pieces must be on their own diagonal
+    fn parse_diagonal_moves(&self, moves: u64, pieces: u64) -> Vec<(u8, u8)> {
+        let mut move_list = Vec::new();
+        let piece_idxs = serialize_board(pieces);
+
+        for piece_idx in piece_idxs.iter() {
+            let piece_diag = diag_index(*piece_idx);
+            let masked = moves & self.mask_diag[piece_diag as usize];
+            for move_idx in serialize_board(masked).iter() {
+                move_list.push((*piece_idx as u8, *move_idx as u8))
+            }
+        }
+
+        move_list
+    }
+
+    // TODO: check validity of pieces?
+    /// Parse a bitboard of anti-diagonal moves into a move list
+    /// All pieces must be on their own anti-diagonal
+    fn parse_anti_diagonal_moves(&self, moves: u64, pieces: u64) -> Vec<(u8, u8)> {
+        let mut move_list = Vec::new();
+        let piece_idxs = serialize_board(pieces);
+
+        for piece_idx in piece_idxs.iter() {
+            let piece_anti_diag = anti_diag_index(*piece_idx);
+            let masked = moves & self.mask_anti_diag[piece_anti_diag as usize];
+            for move_idx in serialize_board(masked).iter() {
+                move_list.push((*piece_idx as u8, *move_idx as u8))
+            }
+        }
+
+        move_list
+    }
+
+
 
 }
 
