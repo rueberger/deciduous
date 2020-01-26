@@ -261,23 +261,70 @@ impl MoveGen {
 
     /// Return possible double and single pawn pushes
     /// Does not treat captures, promotion or en passant
-    pub fn pawn_pushes(board: Board) -> u64 {
+    pub fn pawn_pushes(&self, board: Board) -> Vec<Move> {
+        let mut move_list = Vec::new();
+
         let own_pawns = board.own_pieces & board.pawns;
         let empty = !(board.own_pieces & board.opp_pieces);
 
         let mut flood = (own_pawns << 8) & empty;
         flood |= (flood << 8) & empty;
 
-        flood
+        let pushes = self.parse_vertical_moves(flood, own_pawns);
+
+        for (from_idx, to_idx) in pushes.iter() {
+            move_list.push(
+                Move {
+                    from: *from_idx,
+                    to: *to_idx,
+                    piece: Piece::Pawn,
+                    color: board.color(),
+                    capture: None
+                }
+            )
+        }
+
+        move_list
     }
 
     /// Return possible captures
     /// Does not treat en passant
-    pub fn pawn_captures(&self, board: Board) -> u64 {
+    pub fn pawn_captures(&self, board: Board) -> Vec<Move> {
+        let mut move_list = Vec::new();
+
         let own_pawns = board.own_pieces & board.pawns;
+
         let right_moves = (own_pawns << 9) & self.clear_file[0];
+        let right_captures = self.parse_diagonal_moves(right_moves & board.opp_pieces, own_pawns);
+
         let left_moves = (own_pawns << 7) & self.clear_file[7];
-        (right_moves & board.opp_pieces) | (left_moves & board.opp_pieces)
+        let left_captures = self.parse_anti_diagonal_moves(left_moves & board.opp_pieces, own_pawns);
+
+        for (from_idx, to_idx) in right_captures.iter() {
+            move_list.push(
+                Move {
+                    from: *from_idx,
+                    to: *to_idx,
+                    piece: Piece::Pawn,
+                    color: board.color(),
+                    capture: board.identify(*to_idx)
+                }
+            )
+        }
+
+        for (from_idx, to_idx) in left_captures.iter() {
+            move_list.push(
+                Move {
+                    from: *from_idx,
+                    to: *to_idx,
+                    piece: Piece::Pawn,
+                    color: board.color(),
+                    capture: board.identify(*to_idx)
+                }
+            )
+        }
+
+        move_list
     }
 
     // TODO: treat en passant and promotion
@@ -286,29 +333,8 @@ impl MoveGen {
     //         SLIDING MOVE GEN
     // =================================
 
-    // TODO: deprecate, kinda useless when generating multiple directions at once
-    /// Return all possible orthogonal moves, including captures
-    pub fn ortho_attacks(&self, board: Board) -> u64 {
-        let empty = !(board.own_pieces & board.opp_pieces);
-        (
-            self.north_attacks(board.ortho_sliders, empty) |
-            self.east_attacks(board.ortho_sliders, empty) |
-            self.south_attacks(board.ortho_sliders, empty) |
-            self.west_attacks(board.ortho_sliders, empty)
-        )
-    }
 
-    /// Return all possible diagonal moves, including captures
-    pub fn diag_attacks(&self, board: Board) -> u64 {
-        let empty = !(board.own_pieces & board.opp_pieces);
-        (
-            self.north_east_attacks(board.ortho_sliders, empty) |
-            self.south_east_attacks(board.ortho_sliders, empty) |
-            self.south_west_attacks(board.ortho_sliders, empty) |
-            self.north_west_attacks(board.ortho_sliders, empty)
-        )
-    }
-
+    // TODO: assumption that the max number of colinear pieces is 3 is a bug, promotions
     // TODO: test
     // TODO: worth it to check for colinearity to call a simpler routine?
     // TODO: profile how much all these conditionals cost us
@@ -455,6 +481,29 @@ impl MoveGen {
     }
 
 
+    // =================================
+    //   PSEUDO-LEGAL MOVE LIST GEN
+    // =================================
+
+    /// Generate all pseudo-legal moves
+    fn psuedo_legal_moves(&self, board: Board) -> Vec<Move>{
+        let mut move_list = Vec::new();
+
+        // =================
+        //    PAWN MOVES
+        // =================
+
+        move_list.append(&mut self.pawn_pushes(board));
+        move_list.append(&mut self.pawn_captures(board));
+
+        // TODO: add en passant
+
+
+
+
+        move_list
+    }
+
 
 }
 
@@ -592,12 +641,12 @@ struct Move {
     capture: Option<Piece>
 }
 
-enum Color {
+pub enum Color {
     White,
     Black
 }
 
-enum Piece {
+pub enum Piece {
     Pawn,
     Bishop,
     Knight,
