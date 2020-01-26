@@ -385,6 +385,17 @@ fn file_range(start: u8, end: u8) -> u64 {
     return result;
 }
 
+/// Return square index of first set bit
+/// If no bit is set returns None
+pub fn bitscan_lsd(state: u64) -> Option<u8> {
+    let trailing = state.trailing_zeros() as u8;
+    if trailing == 64 {
+        return None;
+    } else {
+        return Some(trailing)
+    }
+}
+
 // TODO: optimize. so many more sophisticated approaches
 // easy speed up is divide and conquer with same strat
 // much fancier is magic hashing stuff
@@ -400,18 +411,21 @@ pub fn serialize_board(mut state: u64) -> Vec<u8> {
     occupied
 }
 
-/// Return square index of first set bit
-/// If no bit is set returns None
-pub fn bitscan_lsd(state: u64) -> Option<u8> {
-    let trailing = state.trailing_zeros() as u8;
-    if trailing == 64 {
-        return None;
-    } else {
-        return Some(trailing)
-    }
+// /// Parse a bitboard of sliding moves for a single orientation into a vector of (from, to) coordinates
+// /// Handles colinear pieces
+// pub fn parse_sliding_moves(moves: u64, pieces: u64, orientation: Orientation) -> Vec<(u8, u8)> {
+//     // 1. sort pieces
+//     // 2. generate up to 3 masks
+//     // 3. call 1 of 4 directional coordinate generators
+//     // required functions:
+//     //  - popcnt
+//     //
+// }
+
+// TODO: optimize, currently uses naive implementation
+pub fn pop_count(state: u64) -> u8 {
+    serialize_board(state).len() as u8
 }
-
-
 
 struct Move {
     from: u8, // integer 0-63
