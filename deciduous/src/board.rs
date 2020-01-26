@@ -137,6 +137,26 @@ impl Board {
             true => Color::Black
         }
     }
+
+    /// Identify the type of the piece at piece_idx
+    pub fn identify(&self, piece_idx) -> Piece {
+        let piece: u64 = 1 << piece_idx;
+        let kings: u64 = (1 << self.own_king) | (1 << self.opp_king);
+
+        if (self.pawns & piece) != 0 {
+            return Piece::Pawn
+        } else if (self.rooks & piece) != 0 {
+            return Piece::Rook
+        } else if (self.bishops & piece) != 0 {
+            return Piece::Bishop
+        } else if (self.queens & piece) != 0 {
+            return Piece::Queen
+        } else if (kings & piece) != 0 {
+            return Piece::King
+        } else {
+            return Piece::Knight
+        }
+    }
 }
 
 pub struct CastlingRights {
