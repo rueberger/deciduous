@@ -292,6 +292,43 @@ impl MoveGen {
         )
     }
 
+    // TODO: check validity of pieces?
+    /// Parse a bitboard of horizontal moves into a move list
+    /// All pieces must be on their own rank
+    fn parse_horizontal_moves(&self, moves: u64, pieces: u64) -> Vec<(u8, u8)> {
+        let mut move_list = Vec::new();
+        let piece_idxs = serialize_board(pieces);
+
+        for piece_idx in piece_idxs.iter() {
+            let piece_rank = rank_index(*piece_idx);
+            let masked = moves & self.mask_rank[piece_rank as usize];
+            for move_idx in serialize_board(masked).iter() {
+                move_list.push((*piece_idx as u8, *move_idx as u8))
+            }
+        }
+
+        move_list
+    }
+
+    // TODO: check validity of pieces?
+    /// Parse a bitboard of vertical moves into a move list
+    /// All pieces must be on their own file
+    fn parse_vertical_moves(&self, moves: u64, pieces: u64) -> Vec<(u8, u8)> {
+        let mut move_list = Vec::new();
+        let piece_idxs = serialize_board(pieces);
+
+        for piece_idx in piece_idxs.iter() {
+            let piece_file = file_index(*piece_idx);
+            let masked = moves & self.mask_file[piece_file as usize];
+            for move_idx in serialize_board(masked).iter() {
+                move_list.push((*piece_idx as u8, *move_idx as u8))
+            }
+        }
+
+        move_list
+    }
+
+
 }
 
 pub fn init_move_gen() -> MoveGen {
@@ -422,8 +459,9 @@ pub fn serialize_board(mut state: u64) -> Vec<u8> {
 //     //
 // }
 
+
 // TODO: optimize, currently uses naive implementation
-pub fn pop_count(state: u64) -> u8 {
+fn pop_count(state: u64) -> u8 {
     serialize_board(state).len() as u8
 }
 
