@@ -418,6 +418,91 @@ impl MoveGen {
         move_list
     }
 
+    /// Returns all possible diagonal moves (bishops and queens)
+    pub fn diag_moves(&self, board: &Board) -> Vec<Move> {
+        let mut move_list: Vec<Move> = Vec::new();
+        let mut moves: Vec<(u8, u8)> = Vec::new();
+        let mut captures: Vec<(u8, u8)> = Vec::new();
+
+        let queens = board.queens();
+        let empty = board.empty();
+
+        let north_east = self.north_east_attacks(board.ortho_sliders, empty);
+        let north_east_captures = north_east & board.opp_pieces;
+        let north_east_moves = north_east & !board.opp_pieces;
+        captures.append(&mut self.parse_sliding_moves(north_east_captures, board.ortho_sliders, Orientation::NorthEast));
+        moves.append(&mut self.parse_sliding_moves(north_east_moves, board.ortho_sliders, Orientation::NorthEast));
+
+        let south_east = self.south_east_attacks(board.ortho_sliders, empty);
+        let south_east_captures = south_east & board.opp_pieces;
+        let south_east_moves = south_east & !board.opp_pieces;
+        captures.append(&mut self.parse_sliding_moves(south_east_captures, board.ortho_sliders, Orientation::SouthEast));
+        moves.append(&mut self.parse_sliding_moves(south_east_moves, board.ortho_sliders, Orientation::SouthEast));
+
+        let south_west = self.south_west_attacks(board.ortho_sliders, empty);
+        let south_west_captures = south_west & board.opp_pieces;
+        let south_west_moves = south_west & !board.opp_pieces;
+        captures.append(&mut self.parse_sliding_moves(south_west_captures, board.ortho_sliders, Orientation::SouthWest));
+        moves.append(&mut self.parse_sliding_moves(south_west_moves, board.ortho_sliders, Orientation::SouthWest));
+
+        let north_west = self.north_west_attacks(board.ortho_sliders, empty);
+        let north_west_captures = north_west & board.opp_pieces;
+        let north_west_moves = north_west & !board.opp_pieces;
+        captures.append(&mut self.parse_sliding_moves(north_west_captures, board.ortho_sliders, Orientation::NorthWest));
+        moves.append(&mut self.parse_sliding_moves(north_west_moves, board.ortho_sliders, Orientation::NorthWest));
+
+        for (from_idx, to_idx) in moves.iter() {
+            if ((1 << *from_idx) & queens) != 0 {
+                move_list.push(
+                    Move {
+                        from: *from_idx,
+                        to: *to_idx,
+                        piece: Piece::Queen,
+                        color: board.color(),
+                        capture: None
+                    }
+                )
+            } else {
+                move_list.push(
+                    Move {
+                        from: *from_idx,
+                        to: *to_idx,
+                        piece: Piece::Bishop,
+                        color: board.color(),
+                        capture: None
+                    }
+                )
+            }
+        }
+
+        for (from_idx, to_idx) in captures.iter() {
+            if ((1 << *from_idx) & queens) != 0 {
+                move_list.push(
+                    Move {
+                        from: *from_idx,
+                        to: *to_idx,
+                        piece: Piece::Queen,
+                        color: board.color(),
+                        capture: Some(board.identify(*to_idx))
+                    }
+                )
+            } else {
+                move_list.push(
+                    Move {
+                        from: *from_idx,
+                        to: *to_idx,
+                        piece: Piece::Bishop,
+                        color: board.color(),
+                        capture: Some(board.identify(*to_idx))
+                    }
+                )
+            }
+        }
+
+
+        move_list
+    }
+
 
     // TODO: assumption that the max number of colinear pieces is 3 is a bug, promotions
     // TODO: test
