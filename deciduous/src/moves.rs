@@ -364,7 +364,7 @@ impl MoveGen {
         let west_captures = west & board.opp_pieces;
         let west_moves = west & !board.opp_pieces;
         captures.append(&mut self.parse_sliding_moves(west_captures, board.ortho_sliders, Orientation::West));
-        moves.append(&mut self.parse_sliding_movesxo(west_moves, board.ortho_sliders, Orientation::West));
+        moves.append(&mut self.parse_sliding_moves(west_moves, board.ortho_sliders, Orientation::West));
 
         for (from_idx, to_idx) in moves.iter() {
             if ((1 << *from_idx) & queens) != 0 {
