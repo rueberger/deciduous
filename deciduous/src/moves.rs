@@ -669,6 +669,12 @@ impl MoveGen {
         // TODO: add en passant
 
 
+        // =================
+        //  SLIDING MOVES
+        // =================
+
+        move_list.append(&mut self.ortho_moves(&board));
+        move_list.append(&mut self.diag_moves(&board));
 
 
         move_list
