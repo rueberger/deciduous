@@ -56,7 +56,7 @@ pub struct MoveGen {
     //             |     |
     //            -17  -15
     //        soSoWe    soSoEa
-    pub knight_moves: [u64; 64]
+    knight_movement: [u64; 64]
 }
 
 impl MoveGen {
@@ -119,14 +119,14 @@ impl MoveGen {
         for idx in 0..64 {
             let sq = 1 << idx;
 
-            self.knight_moves[idx] |= (sq << 17) & self.clear_file[0];
-            self.knight_moves[idx] |= (sq << 10) & (self.clear_file[0] & self.clear_file[1]);
-            self.knight_moves[idx] |= (sq >> 6) & (self.clear_file[0] & self.clear_file[1]);
-            self.knight_moves[idx] |= (sq >> 15) & self.clear_file[0];
-            self.knight_moves[idx] |= (sq >> 17) & self.clear_file[7];
-            self.knight_moves[idx] |= (sq >> 10) & (self.clear_file[6] & self.clear_file[7]);
-            self.knight_moves[idx] |= (sq << 6) & (self.clear_file[6] & self.clear_file[7]);
-            self.knight_moves[idx] |= (sq << 15) & self.clear_file[7];
+            self.knight_movement[idx] |= (sq << 17) & self.clear_file[0];
+            self.knight_movement[idx] |= (sq << 10) & (self.clear_file[0] & self.clear_file[1]);
+            self.knight_movement[idx] |= (sq >> 6) & (self.clear_file[0] & self.clear_file[1]);
+            self.knight_movement[idx] |= (sq >> 15) & self.clear_file[0];
+            self.knight_movement[idx] |= (sq >> 17) & self.clear_file[7];
+            self.knight_movement[idx] |= (sq >> 10) & (self.clear_file[6] & self.clear_file[7]);
+            self.knight_movement[idx] |= (sq << 6) & (self.clear_file[6] & self.clear_file[7]);
+            self.knight_movement[idx] |= (sq << 15) & self.clear_file[7];
         }
     }
 
@@ -328,6 +328,50 @@ impl MoveGen {
     }
 
     // TODO: treat en passant and promotion
+
+    // =================================
+    //        KNIGHT MOVE GEN
+    // =================================
+
+    pub fn knight_moves(&self, board: &Board) -> Vec<Move> {
+        let mut move_list = Vec::new();
+        let own_knights = board.knights() & board.own_pieces;
+        let empty = board.empty();
+
+        for knight_idx in serialize_board(own_knights).iter() {
+            let movement = self.knight_movement[*knight_idx as usize];
+            let moves = movement & empty;
+            let captures = movement & board.opp_pieces;
+
+            for (from_idx, to_idx) in self.parse_single_piece_moves(moves, *knight_idx).iter() {
+                move_list.push(
+                    Move {
+                        from: *from_idx,
+                        to: *to_idx,
+                        piece: Piece::Knight,
+                        // TODO: pass reference to color, only compute once
+                        color: board.color(),
+                        capture: None
+                    }
+                )
+            }
+
+            for (from_idx, to_idx) in self.parse_single_piece_moves(captures, *knight_idx).iter() {
+                move_list.push(
+                    Move {
+                        from: *from_idx,
+                        to: *to_idx,
+                        piece: Piece::Knight,
+                        color: board.color(),
+                        capture: Some(board.identify(*to_idx))
+                    }
+                )
+            }
+        }
+
+        move_list
+    }
+
 
     // =================================
     //         SLIDING MOVE GEN
@@ -676,6 +720,8 @@ impl MoveGen {
         move_list.append(&mut self.ortho_moves(&board));
         move_list.append(&mut self.diag_moves(&board));
 
+        // TODO: knights, king
+
 
         move_list
     }
@@ -699,7 +745,7 @@ pub fn init_move_gen() -> MoveGen {
         south_east: [0; 64],
         east: [0; 64],
         north_east: [0; 64],
-        knight_moves: [0; 64]
+        knight_movement: [0; 64]
     };
     move_gen
 }
