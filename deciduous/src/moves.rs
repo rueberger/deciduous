@@ -261,11 +261,11 @@ impl MoveGen {
 
     /// Return possible double and single pawn pushes
     /// Does not treat captures, promotion or en passant
-    pub fn pawn_pushes(&self, board: Board) -> Vec<Move> {
+    pub fn pawn_pushes(&self, board: &Board) -> Vec<Move> {
         let mut move_list = Vec::new();
 
         let own_pawns = board.own_pieces & board.pawns;
-        let empty = !(board.own_pieces & board.opp_pieces);
+        let empty = board.empty();
 
         let mut flood = (own_pawns << 8) & empty;
         flood |= (flood << 8) & empty;
@@ -289,7 +289,7 @@ impl MoveGen {
 
     /// Return possible captures
     /// Does not treat en passant
-    pub fn pawn_captures(&self, board: Board) -> Vec<Move> {
+    pub fn pawn_captures(&self, board: &Board) -> Vec<Move> {
         let mut move_list = Vec::new();
 
         let own_pawns = board.own_pieces & board.pawns;
@@ -307,7 +307,7 @@ impl MoveGen {
                     to: *to_idx,
                     piece: Piece::Pawn,
                     color: board.color(),
-                    capture: board.identify(*to_idx)
+                    capture: Some(board.identify(*to_idx))
                 }
             )
         }
@@ -319,7 +319,7 @@ impl MoveGen {
                     to: *to_idx,
                     piece: Piece::Pawn,
                     color: board.color(),
-                    capture: board.identify(*to_idx)
+                    capture: Some(board.identify(*to_idx))
                 }
             )
         }
@@ -332,6 +332,91 @@ impl MoveGen {
     // =================================
     //         SLIDING MOVE GEN
     // =================================
+
+    /// Returns all possible orthogonal moves (rooks and queens)
+    pub fn ortho_moves(&self, board: &Board) -> Vec<Move> {
+        let mut move_list: Vec<Move> = Vec::new();
+        let mut moves: Vec<(u8, u8)> = Vec::new();
+        let mut captures: Vec<(u8, u8)> = Vec::new();
+
+        let queens = board.queens();
+        let empty = board.empty();
+
+        let north = self.north_attacks(board.ortho_sliders, empty);
+        let north_captures = north & board.opp_pieces;
+        let north_moves = north & !board.opp_pieces;
+        captures.append(&mut self.parse_sliding_moves(north_captures, board.ortho_sliders, Orientation::North));
+        moves.append(&mut self.parse_sliding_moves(north_moves, board.ortho_sliders, Orientation::North));
+
+        let east = self.east_attacks(board.ortho_sliders, empty);
+        let east_captures = east & board.opp_pieces;
+        let east_moves = east & !board.opp_pieces;
+        captures.append(&mut self.parse_sliding_moves(east_captures, board.ortho_sliders, Orientation::East));
+        moves.append(&mut self.parse_sliding_moves(east_moves, board.ortho_sliders, Orientation::East));
+
+        let south = self.south_attacks(board.ortho_sliders, empty);
+        let south_captures = south & board.opp_pieces;
+        let south_moves = south & !board.opp_pieces;
+        captures.append(&mut self.parse_sliding_moves(south_captures, board.ortho_sliders, Orientation::South));
+        moves.append(&mut self.parse_sliding_moves(south_moves, board.ortho_sliders, Orientation::South));
+
+        let west = self.west_attacks(board.ortho_sliders, empty);
+        let west_captures = west & board.opp_pieces;
+        let west_moves = west & !board.opp_pieces;
+        captures.append(&mut self.parse_sliding_moves(west_captures, board.ortho_sliders, Orientation::West));
+        moves.append(&mut self.parse_sliding_movesxo(west_moves, board.ortho_sliders, Orientation::West));
+
+        for (from_idx, to_idx) in moves.iter() {
+            if ((1 << *from_idx) & queens) != 0 {
+                move_list.push(
+                    Move {
+                        from: *from_idx,
+                        to: *to_idx,
+                        piece: Piece::Queen,
+                        color: board.color(),
+                        capture: None
+                    }
+                )
+            } else {
+                move_list.push(
+                    Move {
+                        from: *from_idx,
+                        to: *to_idx,
+                        piece: Piece::Rook,
+                        color: board.color(),
+                        capture: None
+                    }
+                )
+            }
+        }
+
+        for (from_idx, to_idx) in captures.iter() {
+            if ((1 << *from_idx) & queens) != 0 {
+                move_list.push(
+                    Move {
+                        from: *from_idx,
+                        to: *to_idx,
+                        piece: Piece::Queen,
+                        color: board.color(),
+                        capture: Some(board.identify(*to_idx))
+                    }
+                )
+            } else {
+                move_list.push(
+                    Move {
+                        from: *from_idx,
+                        to: *to_idx,
+                        piece: Piece::Rook,
+                        color: board.color(),
+                        capture: Some(board.identify(*to_idx))
+                    }
+                )
+            }
+        }
+
+
+        move_list
+    }
 
 
     // TODO: assumption that the max number of colinear pieces is 3 is a bug, promotions
@@ -493,8 +578,8 @@ impl MoveGen {
         //    PAWN MOVES
         // =================
 
-        move_list.append(&mut self.pawn_pushes(board));
-        move_list.append(&mut self.pawn_captures(board));
+        move_list.append(&mut self.pawn_pushes(&board));
+        move_list.append(&mut self.pawn_captures(&board));
 
         // TODO: add en passant
 
