@@ -56,7 +56,9 @@ pub struct MoveGen {
     //             |     |
     //            -17  -15
     //        soSoWe    soSoEa
-    pub knight_moves: [u64; 64]
+    knight_movement: [u64; 64],
+    king_movement: [u64, 64]
+
 }
 
 impl MoveGen {
@@ -119,14 +121,28 @@ impl MoveGen {
         for idx in 0..64 {
             let sq = 1 << idx;
 
-            self.knight_moves[idx] |= (sq << 17) & self.clear_file[0];
-            self.knight_moves[idx] |= (sq << 10) & (self.clear_file[0] & self.clear_file[1]);
-            self.knight_moves[idx] |= (sq >> 6) & (self.clear_file[0] & self.clear_file[1]);
-            self.knight_moves[idx] |= (sq >> 15) & self.clear_file[0];
-            self.knight_moves[idx] |= (sq >> 17) & self.clear_file[7];
-            self.knight_moves[idx] |= (sq >> 10) & (self.clear_file[6] & self.clear_file[7]);
-            self.knight_moves[idx] |= (sq << 6) & (self.clear_file[6] & self.clear_file[7]);
-            self.knight_moves[idx] |= (sq << 15) & self.clear_file[7];
+            self.knight_movement[idx] |= (sq << 17) & self.clear_file[0];
+            self.knight_movement[idx] |= (sq << 10) & (self.clear_file[0] & self.clear_file[1]);
+            self.knight_movement[idx] |= (sq >> 6) & (self.clear_file[0] & self.clear_file[1]);
+            self.knight_movement[idx] |= (sq >> 15) & self.clear_file[0];
+            self.knight_movement[idx] |= (sq >> 17) & self.clear_file[7];
+            self.knight_movement[idx] |= (sq >> 10) & (self.clear_file[6] & self.clear_file[7]);
+            self.knight_movement[idx] |= (sq << 6) & (self.clear_file[6] & self.clear_file[7]);
+            self.knight_movement[idx] |= (sq << 15) & self.clear_file[7];
+        }
+
+        // initialize king movement tables
+        for idx in 0..64 {
+            let sq = 1 << idx;
+
+            self.king_movement[idx] |= sq << 8;
+            self.king_movement[idx] |= (sq << 9) & self.clear_file[0];
+            self.king_movement[idx] |= (sq << 1) & self.clear_file[0];
+            self.king_movement[idx] |= (sq >> 7) & self.clear_file[0];
+            self.king_movement[idx] |= sq >> 8;
+            self.king_movement[idx] |= (sq >> 9) & self.clear_file[7];
+            self.king_movement[idx] |= (sq >> 1) & self.clear_file[7];
+            self.king_movement[idx] |= (sq << 7) & self.clear_file[7];
         }
     }
 
@@ -328,6 +344,91 @@ impl MoveGen {
     }
 
     // TODO: treat en passant and promotion
+
+    // =================================
+    //        KNIGHT MOVE GEN
+    // =================================
+
+    pub fn knight_moves(&self, board: &Board) -> Vec<Move> {
+        let mut move_list = Vec::new();
+        let own_knights = board.knights() & board.own_pieces;
+        let empty = board.empty();
+        let color = board.color();
+
+        for knight_idx in serialize_board(own_knights).iter() {
+            let movement = self.knight_movement[*knight_idx as usize];
+            let moves = movement & empty;
+            let captures = movement & board.opp_pieces;
+
+            for (from_idx, to_idx) in self.parse_single_piece_moves(moves, *knight_idx).iter() {
+                move_list.push(
+                    Move {
+                        from: *from_idx,
+                        to: *to_idx,
+                        piece: Piece::Knight,
+                        color: color,
+                        capture: None
+                    }
+                )
+            }
+
+            for (from_idx, to_idx) in self.parse_single_piece_moves(captures, *knight_idx).iter() {
+                move_list.push(
+                    Move {
+                        from: *from_idx,
+                        to: *to_idx,
+                        piece: Piece::Knight,
+                        color: color,
+                        capture: Some(board.identify(*to_idx))
+                    }
+                )
+            }
+        }
+
+        move_list
+    }
+
+    // =================================
+    //        KING MOVE GEN
+    // =================================
+
+    pub fn king_moves(&self, board: &Board) -> Vec<Move> {
+        let mut move_list = Vec::new();
+        let king_idx = board.own_king;
+        let empty = board.empty();
+        let color = board.color();
+
+        let movement = self.king_movement[king_idx as usize];
+        let moves = movement & empty;
+        let captures = movement & board.opp_pieces;
+
+        for (from_idx, to_idx) in self.parse_single_piece_moves(moves, king_idx).iter() {
+            move_list.push(
+                Move {
+                    from: *from_idx,
+                    to: *to_idx,
+                    piece: Piece::King,
+                    color: color,
+                    capture: None
+                }
+            )
+        }
+
+        for (from_idx, to_idx) in self.parse_single_piece_moves(moves, king_idx).iter() {
+            move_list.push(
+                Move {
+                    from: *from_idx,
+                    to: *to_idx,
+                    piece: Piece::King,
+                    color: color,
+                    capture: Some(board.identify(*to_idx))
+                }
+            )
+        }
+
+        move_list
+    }
+
 
     // =================================
     //         SLIDING MOVE GEN
@@ -676,6 +777,14 @@ impl MoveGen {
         move_list.append(&mut self.ortho_moves(&board));
         move_list.append(&mut self.diag_moves(&board));
 
+        // TODO: knights, king
+
+        // =================
+        //    KNIGHT MOVES
+        // =================
+
+        move_list.append(&mut self.knight_moves(&board));
+
 
         move_list
     }
@@ -699,7 +808,8 @@ pub fn init_move_gen() -> MoveGen {
         south_east: [0; 64],
         east: [0; 64],
         north_east: [0; 64],
-        knight_moves: [0; 64]
+        knight_movement: [0; 64],
+        king_movement: [0; 64]
     };
     move_gen
 }
@@ -817,6 +927,7 @@ struct Move {
     capture: Option<Piece>
 }
 
+#[derive(Copy, Clone)]
 pub enum Color {
     White,
     Black
