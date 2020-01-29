@@ -129,6 +129,7 @@ impl MoveGen {
             self.knight_movement[idx] |= (sq >> 10) & (self.clear_file[6] & self.clear_file[7]);
             self.knight_movement[idx] |= (sq << 6) & (self.clear_file[6] & self.clear_file[7]);
             self.knight_movement[idx] |= (sq << 15) & self.clear_file[7];
+
         }
 
         // initialize king movement tables
@@ -429,6 +430,8 @@ impl MoveGen {
         move_list
     }
 
+=======
+>>>>>>> 78864cac509cababbbec81f61765c8723e9762be
 
     // =================================
     //         SLIDING MOVE GEN
@@ -779,12 +782,12 @@ impl MoveGen {
 
         // TODO: knights, king
 
+
         // =================
         //    KNIGHT MOVES
         // =================
 
         move_list.append(&mut self.knight_moves(&board));
-
 
         move_list
     }
