@@ -430,8 +430,6 @@ impl MoveGen {
         move_list
     }
 
-=======
->>>>>>> 78864cac509cababbbec81f61765c8723e9762be
 
     // =================================
     //         SLIDING MOVE GEN
