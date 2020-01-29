@@ -58,7 +58,6 @@ pub struct MoveGen {
     //        soSoWe    soSoEa
     knight_movement: [u64; 64],
     king_movement: [u64, 64]
-
 }
 
 impl MoveGen {
