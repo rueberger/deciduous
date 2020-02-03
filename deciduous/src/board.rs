@@ -161,12 +161,142 @@ impl Board {
             return Piece::Knight
         }
     }
+
+    /// Handles the subset of make_move that is an involution (self-inverting)
+    /// Does not check  move legality
+    pub fn move_involution(&mut self, m: Move) {
+        let move_bb = (1 << m.from) | (1 << m.to);
+        let capture_bb = 1 << m.to;
+
+        self.own_pieces ^= move_bb;
+
+        // NOTE: knights do not require explicit treatment, as they are derived
+        //  from the complement of all other pieces
+        match m.piece {
+            Piece::Pawn => {
+                self.pawns ^= move_bb;
+            }
+            Piece::Bishop => {
+                self.diag_sliders ^= move_bb;
+            }
+            Piece::Rook => {
+                self.ortho_sliders ^= move_bb;
+            }
+            Piece::Queen => {
+                self.diag_sliders ^= move_bb;
+                self.ortho_sliders ^= move_bb
+            }
+        }
+
+        if let Some(captured) = m.capture {
+            self.opp_pieces ^= capture_bb;
+
+            // TODO: throw an error on king capture? how to handle king attacks?
+            match captured {
+                Piece::Pawn => {
+                    self.pawns ^= capture_bb;
+                },
+                Piece::Bishop => {
+                    self.diag_sliders ^= capture_bb;
+                }
+                Piece::Rook => {
+                    self.ortho_sliders ^= capture_bb;
+                }
+                Piece::Queen => {
+                    self.diag_sliders ^= capture_bb;
+                    self.ortho_sliders ^= capture_bb
+                }
+                _ => ()
+            }
+        }
+
+    }
+
+    // TODO: handle castling rights
+    /// Make move. Mutates state of self.
+    /// Does not check move legality
+    /// Returns undo information
+    pub fn make_move(&mut self, m: Move) -> UndoInfo {
+        self.move_involution(m);
+
+        let undo = UndoInfo {
+            own_castling_rights: self.own_castling_rights,
+            opp_castling_rights: self.opp_castling_rights
+        }
+
+        match m.piece {
+            // TODO: use bitboard for king rep so I can use an involution?
+            Piece::King => {
+                self.own_king = m.to;
+                self.own_castling_rights.king_moved();
+            }
+            Piece::Rook => {
+                if m.from == 0 {
+                    self.own_castling_rights.queenside_moved();
+                } else if m.from == 7 {
+                    self.own_castling_rights.kingside_moved()
+                }
+            }
+            _ => ()
+        }
+
+        if m.capture == Some(Piece::Rook) {
+            if m.to == 56 {
+                self.opp_castling_rights.queenside_moved();
+            } else if m.to == 7 {
+                self.own_castling_rights.kingside_moved()
+            }
+        }
+
+        undo
+    }
+
+    // TODO: handle castling rights
+    /// unmake move. Mutates state of self.
+    /// Does not check move legality
+    pub fn unmake_move(&mut self, m: Move, undo: UndoInfo) {
+        self.move_involution(m);
+
+        match m.piece {
+            // TODO: use bitboard for king rep so I can use an involution?
+            Piece::King => {
+                self.own_king = m.from;
+            }
+            _ => ()
+        }
+
+        self.own_castling_rights = undo.castling_rights
+    }
 }
+
 
 pub struct CastlingRights {
     pub kingside: bool,
     pub queenside: bool
 }
+
+impl CastlingRights {
+    pub fn king_moved(&mut self) {
+        self.kingside = false;
+        self.queenside = false
+    }
+
+    pub fn kingside_moved(&mut self) {
+        self.kingside = false;
+    }
+
+    pub fn queenside_moved(&mut self) {
+        self.kingside = false;
+    }
+}
+
+// TODO: en passant
+pub struct UndoInfo {
+    pub own_castling_rights: CastlingRights,
+    pub opp_castling_rights: CastlingRights
+}
+
+
 
 pub fn init_board() -> Board {
     let board = Board {
