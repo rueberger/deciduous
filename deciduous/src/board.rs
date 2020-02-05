@@ -97,6 +97,7 @@ pub struct Board {
 }
 
 impl Board {
+
     // TODO: add tests
     pub fn color_flip(&mut self) {
         self.own_pieces = self.own_pieces.to_be();
@@ -164,7 +165,7 @@ impl Board {
 
     /// Handles the subset of make_move that is an involution (self-inverting)
     /// Does not check  move legality
-    pub fn move_involution(&mut self, m: Move) {
+    pub fn move_involution(&mut self, m: &Move) {
         let move_bb = (1 << m.from) | (1 << m.to);
         let capture_bb = 1 << m.to;
 
@@ -186,9 +187,10 @@ impl Board {
                 self.diag_sliders ^= move_bb;
                 self.ortho_sliders ^= move_bb
             }
+            _ => ()
         }
 
-        if let Some(captured) = m.capture {
+        if let Some(captured) = &m.capture {
             self.opp_pieces ^= capture_bb;
 
             // TODO: throw an error on king capture? how to handle king attacks?
@@ -216,13 +218,13 @@ impl Board {
     /// Make move. Mutates state of self.
     /// Does not check move legality
     /// Returns undo information
-    pub fn make_move(&mut self, m: Move) -> UndoInfo {
+    pub fn make_move(&mut self, m: &Move) -> UndoInfo {
         self.move_involution(m);
 
         let undo = UndoInfo {
             own_castling_rights: self.own_castling_rights,
             opp_castling_rights: self.opp_castling_rights
-        }
+        };
 
         match m.piece {
             // TODO: use bitboard for king rep so I can use an involution?
@@ -254,7 +256,7 @@ impl Board {
     // TODO: handle castling rights
     /// unmake move. Mutates state of self.
     /// Does not check move legality
-    pub fn unmake_move(&mut self, m: Move, undo: UndoInfo) {
+    pub fn unmake_move(&mut self, m: &Move, undo: &UndoInfo) {
         self.move_involution(m);
 
         match m.piece {
@@ -265,11 +267,14 @@ impl Board {
             _ => ()
         }
 
-        self.own_castling_rights = undo.castling_rights
+        self.own_castling_rights = undo.own_castling_rights;
+        self.opp_castling_rights = undo.opp_castling_rights
+
     }
 }
 
 
+#[derive(Copy, Clone)]
 pub struct CastlingRights {
     pub kingside: bool,
     pub queenside: bool

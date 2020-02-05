@@ -57,7 +57,7 @@ pub struct MoveGen {
     //            -17  -15
     //        soSoWe    soSoEa
     knight_movement: [u64; 64],
-    king_movement: [u64, 64]
+    king_movement: [u64; 64]
 }
 
 impl MoveGen {
@@ -786,6 +786,12 @@ impl MoveGen {
 
         move_list.append(&mut self.knight_moves(&board));
 
+        // =================
+        //    KING MOVES
+        // =================
+
+        move_list.append(&mut self.king_moves(&board));
+
         move_list
     }
 
@@ -919,12 +925,13 @@ fn pop_count(state: u64) -> u8 {
     serialize_board(state).len() as u8
 }
 
-struct Move {
-    from: u8, // integer 0-63
-    to: u8, // integer 0-63
-    piece: Piece,
-    color: Color,
-    capture: Option<Piece>
+// TODO: I don't think color is necessary
+pub struct Move {
+    pub from: u8, // integer 0-63
+    pub to: u8, // integer 0-63
+    pub piece: Piece,
+    pub color: Color,
+    pub capture: Option<Piece>
 }
 
 #[derive(Copy, Clone)]
@@ -933,6 +940,7 @@ pub enum Color {
     Black
 }
 
+#[derive(PartialEq)]
 pub enum Piece {
     Pawn,
     Bishop,
