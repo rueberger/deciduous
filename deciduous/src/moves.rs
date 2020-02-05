@@ -295,7 +295,8 @@ impl MoveGen {
                     to: *to_idx,
                     piece: Piece::Pawn,
                     color: board.color(),
-                    capture: None
+                    capture: None,
+                    category: MoveCategory::Normal
                 }
             )
         }
@@ -323,7 +324,8 @@ impl MoveGen {
                     to: *to_idx,
                     piece: Piece::Pawn,
                     color: board.color(),
-                    capture: Some(board.identify(*to_idx))
+                    capture: Some(board.identify(*to_idx)),
+                    category: MoveCategory::Normal
                 }
             )
         }
@@ -335,7 +337,8 @@ impl MoveGen {
                     to: *to_idx,
                     piece: Piece::Pawn,
                     color: board.color(),
-                    capture: Some(board.identify(*to_idx))
+                    capture: Some(board.identify(*to_idx)),
+                    category: MoveCategory::Normal
                 }
             )
         }
@@ -367,7 +370,8 @@ impl MoveGen {
                         to: *to_idx,
                         piece: Piece::Knight,
                         color: color,
-                        capture: None
+                        capture: None,
+                        category: MoveCategory::Normal
                     }
                 )
             }
@@ -379,7 +383,8 @@ impl MoveGen {
                         to: *to_idx,
                         piece: Piece::Knight,
                         color: color,
-                        capture: Some(board.identify(*to_idx))
+                        capture: Some(board.identify(*to_idx)),
+                        category: MoveCategory::Normal
                     }
                 )
             }
@@ -392,6 +397,7 @@ impl MoveGen {
     //        KING MOVE GEN
     // =================================
 
+    // TODO: castling
     pub fn king_moves(&self, board: &Board) -> Vec<Move> {
         let mut move_list = Vec::new();
         let king_idx = board.own_king;
@@ -409,7 +415,8 @@ impl MoveGen {
                     to: *to_idx,
                     piece: Piece::King,
                     color: color,
-                    capture: None
+                    capture: None,
+                    category: MoveCategory::Normal
                 }
             )
         }
@@ -421,9 +428,53 @@ impl MoveGen {
                     to: *to_idx,
                     piece: Piece::King,
                     color: color,
-                    capture: Some(board.identify(*to_idx))
+                    capture: Some(board.identify(*to_idx)),
+                    category: MoveCategory::Normal
                 }
             )
+        }
+
+        move_list
+    }
+
+    /// Pseudo-legal castling move generation
+    // NOTE: must check the squares we're passing through for check
+    pub fn castling_moves(&self, board: &Board) -> Vec<Move> {
+        let mut move_list = Vec::new();
+        let color = board.color();
+        let occupied = board.own_pieces | board.opp_pieces;
+
+        if board.own_castling_rights.kingside {
+            let kingside_clearance = (1 << 5) | (1 << 6);
+
+            if (occupied & kingside_clearance) == 0 {
+                move_list.push(
+                    Move {
+                        from: 4,
+                        to: 6,
+                        piece: Piece::King,
+                        color: color,
+                        capture: None,
+                        category: MoveCategory::Kingside
+                    }
+                )
+            }
+        }
+        if board.own_castling_rights.queenside {
+            let queenside_clearance = (1 << 1) | (1 << 2) | (1 << 3);
+
+            if (occupied & queenside_clearance) == 0 {
+                move_list.push(
+                    Move {
+                        from: 4,
+                        to: 2,
+                        piece: Piece::King,
+                        color: color,
+                        capture: None,
+                        category: MoveCategory::Queenside
+                    }
+                )
+            }
         }
 
         move_list
@@ -475,7 +526,8 @@ impl MoveGen {
                         to: *to_idx,
                         piece: Piece::Queen,
                         color: board.color(),
-                        capture: None
+                        capture: None,
+                        category: MoveCategory::Normal
                     }
                 )
             } else {
@@ -485,7 +537,8 @@ impl MoveGen {
                         to: *to_idx,
                         piece: Piece::Rook,
                         color: board.color(),
-                        capture: None
+                        capture: None,
+                        category: MoveCategory::Normal
                     }
                 )
             }
@@ -499,7 +552,8 @@ impl MoveGen {
                         to: *to_idx,
                         piece: Piece::Queen,
                         color: board.color(),
-                        capture: Some(board.identify(*to_idx))
+                        capture: Some(board.identify(*to_idx)),
+                        category: MoveCategory::Normal
                     }
                 )
             } else {
@@ -509,7 +563,8 @@ impl MoveGen {
                         to: *to_idx,
                         piece: Piece::Rook,
                         color: board.color(),
-                        capture: Some(board.identify(*to_idx))
+                        capture: Some(board.identify(*to_idx)),
+                        category: MoveCategory::Normal
                     }
                 )
             }
@@ -560,7 +615,8 @@ impl MoveGen {
                         to: *to_idx,
                         piece: Piece::Queen,
                         color: board.color(),
-                        capture: None
+                        capture: None,
+                        category: MoveCategory::Normal
                     }
                 )
             } else {
@@ -570,7 +626,8 @@ impl MoveGen {
                         to: *to_idx,
                         piece: Piece::Bishop,
                         color: board.color(),
-                        capture: None
+                        capture: None,
+                        category: MoveCategory::Normal
                     }
                 )
             }
@@ -584,7 +641,8 @@ impl MoveGen {
                         to: *to_idx,
                         piece: Piece::Queen,
                         color: board.color(),
-                        capture: Some(board.identify(*to_idx))
+                        capture: Some(board.identify(*to_idx)),
+                        category: MoveCategory::Normal
                     }
                 )
             } else {
@@ -594,7 +652,8 @@ impl MoveGen {
                         to: *to_idx,
                         piece: Piece::Bishop,
                         color: board.color(),
-                        capture: Some(board.identify(*to_idx))
+                        capture: Some(board.identify(*to_idx)),
+                        category: MoveCategory::Normal
                     }
                 )
             }
@@ -918,8 +977,6 @@ pub fn serialize_board(mut state: u64) -> Vec<u8> {
     occupied
 }
 
-
-
 // TODO: optimize, currently uses naive implementation
 fn pop_count(state: u64) -> u8 {
     serialize_board(state).len() as u8
@@ -931,7 +988,15 @@ pub struct Move {
     pub to: u8, // integer 0-63
     pub piece: Piece,
     pub color: Color,
-    pub capture: Option<Piece>
+    pub capture: Option<Piece>,
+    pub category: MoveCategory
+}
+
+pub enum MoveCategory {
+    Normal,
+    Queenside,
+    Kingside,
+    EnPassant
 }
 
 #[derive(Copy, Clone)]

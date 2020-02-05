@@ -214,7 +214,7 @@ impl Board {
 
     }
 
-    // TODO: handle castling rights
+    // TODO: en passant
     /// Make move. Mutates state of self.
     /// Does not check move legality
     /// Returns undo information
@@ -253,7 +253,6 @@ impl Board {
         undo
     }
 
-    // TODO: handle castling rights
     /// unmake move. Mutates state of self.
     /// Does not check move legality
     pub fn unmake_move(&mut self, m: &Move, undo: &UndoInfo) {
