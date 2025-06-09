@@ -5,7 +5,7 @@
 /// Supports only little-endian architectures
 
 use std::mem;
-use crate::moves::*;
+use crate::moves as moves;
 
 // Some magic constants
 // Initial configuration of white
@@ -18,7 +18,7 @@ static PAWNS: u64 = 71776119061282560;
 static BISHOPS: u64 = 2594073385365405732;
 // Initial confiuration of knights
 static KNIGHTS: u64 = 4755801206503243842;
-// The initla location of rooks
+// The initial location of rooks
 static ROOKS: u64 = 9295429630892703873;
 // The initial location of the kings
 static KINGS: u64 = 576460752303423496;
@@ -78,7 +78,7 @@ pub fn anti_diag_index(square_idx: u8) -> u8 {
 /// Return square index after flipping about the horizontal axis
 pub fn flip_square_index(sq_idx: u8) -> u8 {
     let flipped = ((1 as u64) << sq_idx).to_be();
-    return bitscan_lsd(flipped).unwrap()
+    return moves::bitscan_lsd(flipped).unwrap()
 }
 
 pub struct Board {
@@ -163,9 +163,10 @@ impl Board {
         }
     }
 
+
     /// Handles the subset of make_move that is an involution (self-inverting)
-    /// Does not check  move legality
-    pub fn move_involution(&mut self, m: &Move) {
+    /// Does not check move legality
+    pub fn move_involution(&mut self, m: &moves::Move) {
         let move_bb = (1 << m.from) | (1 << m.to);
         let capture_bb = 1 << m.to;
 
@@ -218,7 +219,7 @@ impl Board {
     /// Make move. Mutates state of self.
     /// Does not check move legality
     /// Returns undo information
-    pub fn make_move(&mut self, m: &Move) -> UndoInfo {
+    pub fn make_move(&mut self, m: &moves::Move) -> UndoInfo {
         self.move_involution(m);
 
         let undo = UndoInfo {
@@ -253,9 +254,10 @@ impl Board {
         undo
     }
 
+
     /// unmake move. Mutates state of self.
     /// Does not check move legality
-    pub fn unmake_move(&mut self, m: &Move, undo: &UndoInfo) {
+    pub fn unmake_move(&mut self, m: &moves::Move, undo: &UndoInfo) {
         self.move_involution(m);
 
         match m.piece {
@@ -325,6 +327,21 @@ pub fn init_board() -> Board {
 }
 
 
+#[derive(Copy, Clone)]
+pub enum Color {
+    White,
+    Black
+}
+
+#[derive(PartialEq)]
+pub enum Piece {
+    Pawn,
+    Bishop,
+    Knight,
+    Rook,
+    King,
+    Queen
+}
 
 
 #[cfg(test)]

@@ -1,6 +1,6 @@
 /// Module containing all move generation logic
 
-use crate::board::*;
+use crate::board as board;
 use crate::utils::*;
 
 // All bits set in the a-file
@@ -74,8 +74,8 @@ impl MoveGen {
 
         // initialize diagonal mask tables
         for idx in 0..64 {
-            let diag_idx = diag_index(idx);
-            let anti_diag_idx = anti_diag_index(idx);
+            let diag_idx = board::diag_index(idx);
+            let anti_diag_idx = board::anti_diag_index(idx);
 
             self.mask_diag[diag_idx as usize] |= 1 << idx;
             self.mask_anti_diag[anti_diag_idx as usize]|= 1 << idx;
@@ -87,7 +87,7 @@ impl MoveGen {
             for file in 0..8 {
                 let vertical = self.mask_file[file] & self.clear_rank[rank];
                 let horizontal = self.mask_rank[rank] & self.clear_file[file];
-                let idx = square_index(rank as u8, file as u8) as usize;
+                let idx = board::square_index(rank as u8, file as u8) as usize;
 
                 self.north[idx] = rank_range(rank as u8, 7) & vertical;
                 self.south[idx] = rank_range(0, rank as u8) & vertical;
@@ -277,7 +277,7 @@ impl MoveGen {
 
     /// Return possible double and single pawn pushes
     /// Does not treat captures, promotion or en passant
-    pub fn pawn_pushes(&self, board: &Board) -> Vec<Move> {
+    pub fn pawn_pushes(&self, board: &board::Board) -> Vec<Move> {
         let mut move_list = Vec::new();
 
         let own_pawns = board.own_pieces & board.pawns;
@@ -293,7 +293,7 @@ impl MoveGen {
                 Move {
                     from: *from_idx,
                     to: *to_idx,
-                    piece: Piece::Pawn,
+                    piece: board::Piece::Pawn,
                     color: board.color(),
                     capture: None,
                     category: MoveCategory::Normal
@@ -306,7 +306,7 @@ impl MoveGen {
 
     /// Return possible captures
     /// Does not treat en passant
-    pub fn pawn_captures(&self, board: &Board) -> Vec<Move> {
+    pub fn pawn_captures(&self, board: &board::Board) -> Vec<Move> {
         let mut move_list = Vec::new();
 
         let own_pawns = board.own_pieces & board.pawns;
@@ -322,7 +322,7 @@ impl MoveGen {
                 Move {
                     from: *from_idx,
                     to: *to_idx,
-                    piece: Piece::Pawn,
+                    piece: board::Piece::Pawn,
                     color: board.color(),
                     capture: Some(board.identify(*to_idx)),
                     category: MoveCategory::Normal
@@ -335,7 +335,7 @@ impl MoveGen {
                 Move {
                     from: *from_idx,
                     to: *to_idx,
-                    piece: Piece::Pawn,
+                    piece: board::Piece::Pawn,
                     color: board.color(),
                     capture: Some(board.identify(*to_idx)),
                     category: MoveCategory::Normal
@@ -352,7 +352,7 @@ impl MoveGen {
     //        KNIGHT MOVE GEN
     // =================================
 
-    pub fn knight_moves(&self, board: &Board) -> Vec<Move> {
+    pub fn knight_moves(&self, board: &board::Board) -> Vec<Move> {
         let mut move_list = Vec::new();
         let own_knights = board.knights() & board.own_pieces;
         let empty = board.empty();
@@ -368,7 +368,7 @@ impl MoveGen {
                     Move {
                         from: *from_idx,
                         to: *to_idx,
-                        piece: Piece::Knight,
+                        piece: board::Piece::Knight,
                         color: color,
                         capture: None,
                         category: MoveCategory::Normal
@@ -381,7 +381,7 @@ impl MoveGen {
                     Move {
                         from: *from_idx,
                         to: *to_idx,
-                        piece: Piece::Knight,
+                        piece: board::Piece::Knight,
                         color: color,
                         capture: Some(board.identify(*to_idx)),
                         category: MoveCategory::Normal
@@ -398,7 +398,7 @@ impl MoveGen {
     // =================================
 
     // TODO: castling
-    pub fn king_moves(&self, board: &Board) -> Vec<Move> {
+    pub fn king_moves(&self, board: &board::Board) -> Vec<Move> {
         let mut move_list = Vec::new();
         let king_idx = board.own_king;
         let empty = board.empty();
@@ -413,7 +413,7 @@ impl MoveGen {
                 Move {
                     from: *from_idx,
                     to: *to_idx,
-                    piece: Piece::King,
+                    piece: board::Piece::King,
                     color: color,
                     capture: None,
                     category: MoveCategory::Normal
@@ -426,7 +426,7 @@ impl MoveGen {
                 Move {
                     from: *from_idx,
                     to: *to_idx,
-                    piece: Piece::King,
+                    piece: board::Piece::King,
                     color: color,
                     capture: Some(board.identify(*to_idx)),
                     category: MoveCategory::Normal
@@ -439,7 +439,7 @@ impl MoveGen {
 
     /// Pseudo-legal castling move generation
     // NOTE: must check the squares we're passing through for check
-    pub fn castling_moves(&self, board: &Board) -> Vec<Move> {
+    pub fn castling_moves(&self, board: &board::Board) -> Vec<Move> {
         let mut move_list = Vec::new();
         let color = board.color();
         let occupied = board.own_pieces | board.opp_pieces;
@@ -452,7 +452,7 @@ impl MoveGen {
                     Move {
                         from: 4,
                         to: 6,
-                        piece: Piece::King,
+                        piece: board::Piece::King,
                         color: color,
                         capture: None,
                         category: MoveCategory::Kingside
@@ -468,7 +468,7 @@ impl MoveGen {
                     Move {
                         from: 4,
                         to: 2,
-                        piece: Piece::King,
+                        piece: board::Piece::King,
                         color: color,
                         capture: None,
                         category: MoveCategory::Queenside
@@ -486,7 +486,7 @@ impl MoveGen {
     // =================================
 
     /// Returns all possible orthogonal moves (rooks and queens)
-    pub fn ortho_moves(&self, board: &Board) -> Vec<Move> {
+    pub fn ortho_moves(&self, board: &board::Board) -> Vec<Move> {
         let mut move_list: Vec<Move> = Vec::new();
         let mut moves: Vec<(u8, u8)> = Vec::new();
         let mut captures: Vec<(u8, u8)> = Vec::new();
@@ -524,7 +524,7 @@ impl MoveGen {
                     Move {
                         from: *from_idx,
                         to: *to_idx,
-                        piece: Piece::Queen,
+                        piece: board::Piece::Queen,
                         color: board.color(),
                         capture: None,
                         category: MoveCategory::Normal
@@ -535,7 +535,7 @@ impl MoveGen {
                     Move {
                         from: *from_idx,
                         to: *to_idx,
-                        piece: Piece::Rook,
+                        piece: board::Piece::Rook,
                         color: board.color(),
                         capture: None,
                         category: MoveCategory::Normal
@@ -550,7 +550,7 @@ impl MoveGen {
                     Move {
                         from: *from_idx,
                         to: *to_idx,
-                        piece: Piece::Queen,
+                        piece: board::Piece::Queen,
                         color: board.color(),
                         capture: Some(board.identify(*to_idx)),
                         category: MoveCategory::Normal
@@ -561,7 +561,7 @@ impl MoveGen {
                     Move {
                         from: *from_idx,
                         to: *to_idx,
-                        piece: Piece::Rook,
+                        piece: board::Piece::Rook,
                         color: board.color(),
                         capture: Some(board.identify(*to_idx)),
                         category: MoveCategory::Normal
@@ -575,7 +575,7 @@ impl MoveGen {
     }
 
     /// Returns all possible diagonal moves (bishops and queens)
-    pub fn diag_moves(&self, board: &Board) -> Vec<Move> {
+    pub fn diag_moves(&self, board: &board::Board) -> Vec<Move> {
         let mut move_list: Vec<Move> = Vec::new();
         let mut moves: Vec<(u8, u8)> = Vec::new();
         let mut captures: Vec<(u8, u8)> = Vec::new();
@@ -613,7 +613,7 @@ impl MoveGen {
                     Move {
                         from: *from_idx,
                         to: *to_idx,
-                        piece: Piece::Queen,
+                        piece: board::Piece::Queen,
                         color: board.color(),
                         capture: None,
                         category: MoveCategory::Normal
@@ -624,7 +624,7 @@ impl MoveGen {
                     Move {
                         from: *from_idx,
                         to: *to_idx,
-                        piece: Piece::Bishop,
+                        piece: board::Piece::Bishop,
                         color: board.color(),
                         capture: None,
                         category: MoveCategory::Normal
@@ -639,7 +639,7 @@ impl MoveGen {
                     Move {
                         from: *from_idx,
                         to: *to_idx,
-                        piece: Piece::Queen,
+                        piece: board::Piece::Queen,
                         color: board.color(),
                         capture: Some(board.identify(*to_idx)),
                         category: MoveCategory::Normal
@@ -650,7 +650,7 @@ impl MoveGen {
                     Move {
                         from: *from_idx,
                         to: *to_idx,
-                        piece: Piece::Bishop,
+                        piece: board::Piece::Bishop,
                         color: board.color(),
                         capture: Some(board.identify(*to_idx)),
                         category: MoveCategory::Normal
@@ -681,16 +681,16 @@ impl MoveGen {
         for piece_idx in piece_idxs.iter() {
             match orientation.axis() {
                 Axis::Rank => {
-                    axis_wise[file_index(*piece_idx) as usize] = Some(*piece_idx);
+                    axis_wise[board::file_index(*piece_idx) as usize] = Some(*piece_idx);
                 }
                 Axis::File => {
-                    axis_wise[rank_index(*piece_idx) as usize] = Some(*piece_idx);
+                    axis_wise[board::rank_index(*piece_idx) as usize] = Some(*piece_idx);
                 }
                 Axis::Diagonal => {
-                    axis_wise[anti_diag_index(*piece_idx) as usize] = Some(*piece_idx);
+                    axis_wise[board::anti_diag_index(*piece_idx) as usize] = Some(*piece_idx);
                 }
                 Axis::AntiDiagonal => {
-                    axis_wise[diag_index(*piece_idx) as usize] = Some(*piece_idx);
+                    axis_wise[board::diag_index(*piece_idx) as usize] = Some(*piece_idx);
                 }
             }
         }
@@ -746,7 +746,7 @@ impl MoveGen {
         let piece_idxs = serialize_board(pieces);
 
         for piece_idx in piece_idxs.iter() {
-            let piece_rank = rank_index(*piece_idx);
+            let piece_rank = board::rank_index(*piece_idx);
             let masked = moves & self.mask_rank[piece_rank as usize];
             for move_idx in serialize_board(masked).iter() {
                 move_list.push((*piece_idx as u8, *move_idx as u8));
@@ -764,7 +764,7 @@ impl MoveGen {
         let piece_idxs = serialize_board(pieces);
 
         for piece_idx in piece_idxs.iter() {
-            let piece_file = file_index(*piece_idx);
+            let piece_file = board::file_index(*piece_idx);
             let masked = moves & self.mask_file[piece_file as usize];
             for move_idx in serialize_board(masked).iter() {
                 move_list.push((*piece_idx as u8, *move_idx as u8));
@@ -782,7 +782,7 @@ impl MoveGen {
         let piece_idxs = serialize_board(pieces);
 
         for piece_idx in piece_idxs.iter() {
-            let piece_diag = diag_index(*piece_idx);
+            let piece_diag = board::diag_index(*piece_idx);
             let masked = moves & self.mask_diag[piece_diag as usize];
             for move_idx in serialize_board(masked).iter() {
                 move_list.push((*piece_idx as u8, *move_idx as u8));
@@ -800,7 +800,7 @@ impl MoveGen {
         let piece_idxs = serialize_board(pieces);
 
         for piece_idx in piece_idxs.iter() {
-            let piece_anti_diag = anti_diag_index(*piece_idx);
+            let piece_anti_diag = board::anti_diag_index(*piece_idx);
             let masked = moves & self.mask_anti_diag[piece_anti_diag as usize];
             for move_idx in serialize_board(masked).iter() {
                 move_list.push((*piece_idx as u8, *move_idx as u8));
@@ -816,7 +816,7 @@ impl MoveGen {
     // =================================
 
     /// Generate all pseudo-legal moves
-    fn psuedo_legal_moves(&self, board: Board) -> Vec<Move>{
+    fn psuedo_legal_moves(&self, board: board::Board) -> Vec<Move>{
         let mut move_list = Vec::new();
 
         // =================
@@ -951,6 +951,8 @@ fn file_range(start: u8, end: u8) -> u64 {
     return result;
 }
 
+
+// TODO: maybe this should be in board? idk
 /// Return square index of first set bit
 /// If no bit is set returns None
 pub fn bitscan_lsd(state: u64) -> Option<u8> {
@@ -986,9 +988,9 @@ fn pop_count(state: u64) -> u8 {
 pub struct Move {
     pub from: u8, // integer 0-63
     pub to: u8, // integer 0-63
-    pub piece: Piece,
-    pub color: Color,
-    pub capture: Option<Piece>,
+    pub piece: board::Piece,
+    pub color: board::Color,
+    pub capture: Option<board::Piece>,
     pub category: MoveCategory
 }
 
@@ -999,21 +1001,6 @@ pub enum MoveCategory {
     EnPassant
 }
 
-#[derive(Copy, Clone)]
-pub enum Color {
-    White,
-    Black
-}
-
-#[derive(PartialEq)]
-pub enum Piece {
-    Pawn,
-    Bishop,
-    Knight,
-    Rook,
-    King,
-    Queen
-}
 
 enum Axis {
     // horizontal
