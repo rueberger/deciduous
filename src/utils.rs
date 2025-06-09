@@ -1,6 +1,5 @@
 /// Module for general utilities, not related to chess
 
-
 // TODO: there must be something in std that does this
 /// crappy arg sort that only works efficiently for unique values in tiny ranges
 pub fn bad_argsort(arr: Vec<Option<u8>>) -> Vec<u8> {

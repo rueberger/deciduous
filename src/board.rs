@@ -1,11 +1,10 @@
+use crate::moves;
 /// Module of operations for manipulating the board representation
 /// The board is represented as a bitboard, an array of 64 bit integers
 /// As the chess board has 64 squares, we assign each square a bit, with the value of each bit determined by the
 /// occupancy of the corresponding square.
 /// Supports only little-endian architectures
-
 use std::mem;
-use crate::moves as moves;
 
 // Some magic constants
 // Initial configuration of white
@@ -72,13 +71,12 @@ pub fn anti_diag_index(square_idx: u8) -> u8 {
     rank + file
 }
 
-
 // TODO: optimize, there should be an explicit form
 // looks like sq_idx ^ 0b111000 does the trick
 /// Return square index after flipping about the horizontal axis
 pub fn flip_square_index(sq_idx: u8) -> u8 {
     let flipped = ((1 as u64) << sq_idx).to_be();
-    return moves::bitscan_lsd(flipped).unwrap()
+    return moves::bitscan_lsd(flipped).unwrap();
 }
 
 pub struct Board {
@@ -93,11 +91,10 @@ pub struct Board {
     pub opp_king: u8,
     pub own_castling_rights: CastlingRights,
     pub opp_castling_rights: CastlingRights,
-    pub flipped: bool
+    pub flipped: bool,
 }
 
 impl Board {
-
     // TODO: add tests
     pub fn color_flip(&mut self) {
         self.own_pieces = self.own_pieces.to_be();
@@ -139,7 +136,7 @@ impl Board {
     pub fn color(&self) -> Color {
         match self.flipped {
             false => Color::White,
-            true => Color::Black
+            true => Color::Black,
         }
     }
 
@@ -149,20 +146,19 @@ impl Board {
         let kings: u64 = (1 << self.own_king) | (1 << self.opp_king);
 
         if (self.pawns & piece) != 0 {
-            return Piece::Pawn
+            return Piece::Pawn;
         } else if (self.rooks() & piece) != 0 {
-            return Piece::Rook
+            return Piece::Rook;
         } else if (self.bishops() & piece) != 0 {
-            return Piece::Bishop
+            return Piece::Bishop;
         } else if (self.queens() & piece) != 0 {
-            return Piece::Queen
+            return Piece::Queen;
         } else if (kings & piece) != 0 {
-            return Piece::King
+            return Piece::King;
         } else {
-            return Piece::Knight
+            return Piece::Knight;
         }
     }
-
 
     /// Handles the subset of make_move that is an involution (self-inverting)
     /// Does not check move legality
@@ -188,7 +184,7 @@ impl Board {
                 self.diag_sliders ^= move_bb;
                 self.ortho_sliders ^= move_bb
             }
-            _ => ()
+            _ => (),
         }
 
         if let Some(captured) = &m.capture {
@@ -198,7 +194,7 @@ impl Board {
             match captured {
                 Piece::Pawn => {
                     self.pawns ^= capture_bb;
-                },
+                }
                 Piece::Bishop => {
                     self.diag_sliders ^= capture_bb;
                 }
@@ -209,10 +205,9 @@ impl Board {
                     self.diag_sliders ^= capture_bb;
                     self.ortho_sliders ^= capture_bb
                 }
-                _ => ()
+                _ => (),
             }
         }
-
     }
 
     // TODO: en passant
@@ -224,7 +219,7 @@ impl Board {
 
         let undo = UndoInfo {
             own_castling_rights: self.own_castling_rights,
-            opp_castling_rights: self.opp_castling_rights
+            opp_castling_rights: self.opp_castling_rights,
         };
 
         match m.piece {
@@ -240,7 +235,7 @@ impl Board {
                     self.own_castling_rights.kingside_moved()
                 }
             }
-            _ => ()
+            _ => (),
         }
 
         if m.capture == Some(Piece::Rook) {
@@ -254,7 +249,6 @@ impl Board {
         undo
     }
 
-
     /// unmake move. Mutates state of self.
     /// Does not check move legality
     pub fn unmake_move(&mut self, m: &moves::Move, undo: &UndoInfo) {
@@ -265,20 +259,18 @@ impl Board {
             Piece::King => {
                 self.own_king = m.from;
             }
-            _ => ()
+            _ => (),
         }
 
         self.own_castling_rights = undo.own_castling_rights;
         self.opp_castling_rights = undo.opp_castling_rights
-
     }
 }
-
 
 #[derive(Copy, Clone)]
 pub struct CastlingRights {
     pub kingside: bool,
-    pub queenside: bool
+    pub queenside: bool,
 }
 
 impl CastlingRights {
@@ -299,10 +291,8 @@ impl CastlingRights {
 // TODO: en passant
 pub struct UndoInfo {
     pub own_castling_rights: CastlingRights,
-    pub opp_castling_rights: CastlingRights
+    pub opp_castling_rights: CastlingRights,
 }
-
-
 
 pub fn init_board() -> Board {
     let board = Board {
@@ -315,22 +305,21 @@ pub fn init_board() -> Board {
         opp_king: square_index(7, 4) as u8,
         own_castling_rights: CastlingRights {
             kingside: true,
-            queenside: true
+            queenside: true,
         },
         opp_castling_rights: CastlingRights {
             kingside: true,
-            queenside: true
+            queenside: true,
         },
-        flipped: false
+        flipped: false,
     };
     board
 }
 
-
 #[derive(Copy, Clone)]
 pub enum Color {
     White,
-    Black
+    Black,
 }
 
 #[derive(PartialEq)]
@@ -340,9 +329,8 @@ pub enum Piece {
     Knight,
     Rook,
     King,
-    Queen
+    Queen,
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -356,5 +344,4 @@ mod tests {
             assert_eq!(square_index(rank, file), sq_idx as u8)
         }
     }
-
 }

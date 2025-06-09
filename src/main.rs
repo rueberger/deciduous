@@ -2,7 +2,6 @@ mod board;
 mod moves;
 mod utils;
 
-
 fn render_board(state: u64) -> String {
     let mut render = String::new();
 
@@ -22,9 +21,8 @@ fn render_board(state: u64) -> String {
         }
         render.push('\n')
     }
-    return render
+    return render;
 }
-
 
 fn main() {
     let mut b = board::init_board();
@@ -37,10 +35,7 @@ fn main() {
     println!("{}", moves::serialize_board(b.own_pieces).as_slice()[12]);
 
     let xs: [i32; 5] = [1, 2, 3, 4, 5];
-
-
 }
-
 
 #[cfg(test)]
 mod tests {
