@@ -369,7 +369,6 @@ impl MoveGen {
             })
         }
 
-        // en passant: up 4 squares, over one
         let right_ep_move = (own_pawns << 33) & self.clear_file[0];
         if right_ep_move != 0 {
             let (from_idx, to_idx) = self.parse_ep_capture_move(right_ep_move, Orientation::East);
@@ -482,11 +481,11 @@ impl MoveGen {
         move_list
     }
 
-    /// Pseudo-legal castling move generation
+    // Pseudo-legal castling move generation
+    // Returned moves describe rook moves
     // NOTE: must check the squares we're passing through for check
     pub fn castling_moves(&self, board: &board::Board) -> Vec<Move> {
         let mut move_list = Vec::new();
-        let color = board.color();
         let occupied = board.own_pieces | board.opp_pieces;
 
         if board.own_castling_rights.kingside {
@@ -494,12 +493,12 @@ impl MoveGen {
 
             if (occupied & kingside_clearance) == 0 {
                 move_list.push(Move {
-                    from: 4,
-                    to: 6,
-                    piece: board::Piece::King,
-                    color: color,
+                    from: 7,
+                    to: 5,
+                    piece: board::Piece::Rook,
+                    color: board.color(),
                     capture: None,
-                    category: MoveCategory::Kingside,
+                    category: MoveCategory::KingsideCastle,
                 })
             }
         }
@@ -508,12 +507,12 @@ impl MoveGen {
 
             if (occupied & queenside_clearance) == 0 {
                 move_list.push(Move {
-                    from: 4,
-                    to: 2,
-                    piece: board::Piece::King,
-                    color: color,
+                    from: 0,
+                    to: 3,
+                    piece: board::Piece::Rook,
+                    color: board.color(),
                     capture: None,
-                    category: MoveCategory::Queenside,
+                    category: MoveCategory::QueensideCastle,
                 })
             }
         }
@@ -1094,8 +1093,8 @@ pub struct Move {
 #[derive(PartialEq)]
 pub enum MoveCategory {
     Normal,
-    Queenside,
-    Kingside,
+    QueensideCastle,
+    KingsideCastle,
     EnPassant,
     DoublePawnPush,
 }
