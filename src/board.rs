@@ -189,6 +189,9 @@ impl Board {
 
         if let Some(captured) = &m.capture {
             let capture_bb: u64 = match m.category {
+                // En passant is the only move where capturing piece doesn't
+                // move to location of captured piece, (from, to) describes
+                // capturing piece.
                 moves::MoveCategory::EnPassant => 1 << (m.to - 8),
                 _ => 1 << m.to,
             };
@@ -235,8 +238,7 @@ impl Board {
             en_passant_state: self.pawns as u8,
         };
 
-        // Castling logic
-        // TODO: could use move category to set castling rights?
+        // Castling rights
         match m.piece {
             // TODO: use bitboard for king rep so I can use an involution?
             Piece::King => {
@@ -256,8 +258,8 @@ impl Board {
         if m.capture == Some(Piece::Rook) {
             if m.to == 56 {
                 self.opp_castling_rights.queenside_moved();
-            } else if m.to == 7 {
-                self.own_castling_rights.kingside_moved();
+            } else if m.to == 63 {
+                self.opp_castling_rights.kingside_moved();
             }
         }
 
