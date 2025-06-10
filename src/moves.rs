@@ -1,6 +1,6 @@
 /// Module containing all move generation logic
 use crate::board;
-use crate::utils::*;
+use crate::utils;
 
 // All bits set in the a-file
 static A_FILE: u64 = 0x0101010101010101;
@@ -151,7 +151,6 @@ impl MoveGen {
             self.knight_movement[idx] |= (sq << 6) & (self.clear_file[6] & self.clear_file[7]);
             self.knight_movement[idx] |= (sq << 15) & self.clear_file[7];
         }
-
 
         // initialize king movement tables
         for idx in 0..64 {
@@ -304,12 +303,13 @@ impl MoveGen {
         let own_pawns = board.own_pieces & board.pawns;
         let empty = board.empty();
 
-        let mut flood = (own_pawns << 8) & empty;
-        flood |= (flood << 8) & empty;
+        let single_push = (own_pawns << 8) & empty;
+        let double_push = (single_push << 8) & empty;
 
-        let pushes = self.parse_vertical_moves(flood, own_pawns);
+        let single_pushes = self.parse_vertical_moves(single_push, own_pawns);
+        let double_pushes = self.parse_vertical_moves(double_push, own_pawns);
 
-        for (from_idx, to_idx) in pushes.iter() {
+        for (from_idx, to_idx) in single_pushes.iter() {
             move_list.push(Move {
                 from: *from_idx,
                 to: *to_idx,
@@ -320,11 +320,21 @@ impl MoveGen {
             })
         }
 
+        for (from_idx, to_idx) in double_pushes.iter() {
+            move_list.push(Move {
+                from: *from_idx,
+                to: *to_idx,
+                piece: board::Piece::Pawn,
+                color: board.color(),
+                capture: None,
+                category: MoveCategory::DoublePawnPush,
+            })
+        }
+
         move_list
     }
 
     /// Return possible captures
-    /// Does not treat en passant
     pub fn pawn_captures(&self, board: &board::Board) -> Vec<Move> {
         let mut move_list = Vec::new();
 
@@ -359,10 +369,37 @@ impl MoveGen {
             })
         }
 
+        // en passant: up 4 squares, over one
+        let right_ep_move = (own_pawns << 33) & self.clear_file[0];
+        if right_ep_move != 0 {
+            let (from_idx, to_idx) = self.parse_ep_capture_move(right_ep_move, Orientation::East);
+            move_list.push(Move {
+                from: from_idx,
+                to: to_idx,
+                piece: board::Piece::Pawn,
+                color: board.color(),
+                capture: Some(board::Piece::Pawn),
+                category: MoveCategory::EnPassant,
+            })
+        }
+
+        let left_ep_move = (own_pawns << 31) & self.clear_file[7];
+        if left_ep_move != 0 {
+            let (from_idx, to_idx) = self.parse_ep_capture_move(right_ep_move, Orientation::West);
+            move_list.push(Move {
+                from: from_idx,
+                to: to_idx,
+                piece: board::Piece::Pawn,
+                color: board.color(),
+                capture: Some(board::Piece::Pawn),
+                category: MoveCategory::EnPassant,
+            })
+        }
+
         move_list
     }
 
-    // TODO: treat en passant and promotion
+    // TODO: promotion
 
     // =================================
     //        KNIGHT MOVE GEN
@@ -750,7 +787,8 @@ impl MoveGen {
         }
 
         // indices of pieces along the current axis
-        let mut sorted_piece_idxs = bad_argsort(axis_wise.to_vec());
+
+        let mut sorted_piece_idxs = utils::bad_argsort(axis_wise.to_vec());
         let mut masks = Vec::new();
 
         // some directions require sorted_piece_idxs to be reversed
@@ -790,6 +828,21 @@ impl MoveGen {
         }
 
         move_list
+    }
+
+    // Parse en passant capture bitboard. Assumes moves is not empty.
+    // Returned (from_idx, to_idx) describe movement of capturing piece
+    fn parse_ep_capture_move(&self, moves: u64, orientation: Orientation) -> (u8, u8) {
+        let to_idx = serialize_board(moves)[0] - 16;
+
+        let from_idx = match orientation {
+            Orientation::West => to_idx - 9,
+            Orientation::East => to_idx - 7,
+            // TODO: what error should I throw for the catch-all case?
+            _ => panic!("Disallowed value"),
+        };
+
+        (from_idx, to_idx)
     }
 
     // TODO: check validity of pieces?
@@ -878,8 +931,6 @@ impl MoveGen {
 
         move_list.append(&mut self.pawn_pushes(&board));
         move_list.append(&mut self.pawn_captures(&board));
-
-        // TODO: add en passant
 
         // =================
         //  SLIDING MOVES

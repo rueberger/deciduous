@@ -1,10 +1,10 @@
-use crate::moves;
 /// Module of operations for manipulating the board representation
 /// The board is represented as a bitboard, an array of 64 bit integers
 /// As the chess board has 64 squares, we assign each square a bit, with the value of each bit determined by the
 /// occupancy of the corresponding square.
 /// Supports only little-endian architectures
 use std::mem;
+use crate::moves;
 
 // Some magic constants
 // Initial configuration of white
@@ -27,6 +27,8 @@ static QUEENS: u64 = 1152921504606846992;
 static EMPTY_SET: u64 = 0;
 // The universal set with all bits set
 static UNIVERSAL_SET: u64 = 18446744073709551615;
+// All bits excepting the first rank se
+static CLEAR_FIRST_RANK: u64 = 18446744073709551360;
 
 /// Square ordering is Little-Endian Rank-File
 ///
@@ -84,7 +86,6 @@ pub struct Board {
     pub opp_pieces: u64,
     pub ortho_sliders: u64,
     pub diag_sliders: u64,
-    // TODO: lc0 encodes additional info about en passant in ranks 1 and 8
     pub pawns: u64,
     // king positions are represented by square index
     pub own_king: u8,
@@ -164,7 +165,6 @@ impl Board {
     /// Does not check move legality
     pub fn move_involution(&mut self, m: &moves::Move) {
         let move_bb = (1 << m.from) | (1 << m.to);
-        let capture_bb = 1 << m.to;
 
         self.own_pieces ^= move_bb;
 
@@ -188,6 +188,10 @@ impl Board {
         }
 
         if let Some(captured) = &m.capture {
+            let capture_bb: u64 = match m.category {
+                moves::MoveCategory::EnPassant => 1 << (m.to - 8),
+                _ => 1 << m.to,
+            };
             self.opp_pieces ^= capture_bb;
 
             // TODO: throw an error on king capture? how to handle king attacks?
@@ -203,25 +207,36 @@ impl Board {
                 }
                 Piece::Queen => {
                     self.diag_sliders ^= capture_bb;
-                    self.ortho_sliders ^= capture_bb
+                    self.ortho_sliders ^= capture_bb;
                 }
                 _ => (),
             }
         }
     }
 
-    // TODO: en passant
     /// Make move. Mutates state of self.
     /// Does not check move legality
     /// Returns undo information
     pub fn make_move(&mut self, m: &moves::Move) -> UndoInfo {
         self.move_involution(m);
 
+        // Clear en passant state from previous turn
+        self.pawns &= CLEAR_FIRST_RANK;
+
+        // Set bit in bottom rank to mark pawn as eligible for capture by en passant next turn
+        if m.category == moves::MoveCategory::DoublePawnPush {
+            self.pawns |= 1 << file_index(m.from);
+        }
+
         let undo = UndoInfo {
             own_castling_rights: self.own_castling_rights,
             opp_castling_rights: self.opp_castling_rights,
+            // Casting behavior keeps the least significant bits
+            en_passant_state: self.pawns as u8,
         };
 
+        // Castling logic
+        // TODO: could use move category to set castling rights?
         match m.piece {
             // TODO: use bitboard for king rep so I can use an involution?
             Piece::King => {
@@ -232,7 +247,7 @@ impl Board {
                 if m.from == 0 {
                     self.own_castling_rights.queenside_moved();
                 } else if m.from == 7 {
-                    self.own_castling_rights.kingside_moved()
+                    self.own_castling_rights.kingside_moved();
                 }
             }
             _ => (),
@@ -242,7 +257,7 @@ impl Board {
             if m.to == 56 {
                 self.opp_castling_rights.queenside_moved();
             } else if m.to == 7 {
-                self.own_castling_rights.kingside_moved()
+                self.own_castling_rights.kingside_moved();
             }
         }
 
@@ -263,7 +278,10 @@ impl Board {
         }
 
         self.own_castling_rights = undo.own_castling_rights;
-        self.opp_castling_rights = undo.opp_castling_rights
+        self.opp_castling_rights = undo.opp_castling_rights;
+
+        self.pawns &= CLEAR_FIRST_RANK;
+        self.pawns |= undo.en_passant_state as u64;
     }
 }
 
@@ -288,10 +306,11 @@ impl CastlingRights {
     }
 }
 
-// TODO: en passant
+// TODO: doesn't need to be public?
 pub struct UndoInfo {
     pub own_castling_rights: CastlingRights,
     pub opp_castling_rights: CastlingRights,
+    en_passant_state: u8,
 }
 
 pub fn init_board() -> Board {
