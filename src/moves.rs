@@ -60,8 +60,32 @@ pub struct MoveGen {
 }
 
 impl MoveGen {
+    // TODO: I think using new as a constructor is idiomatic, but not sure? also idk about using initialize here
+    pub fn new() -> Self {
+        let mut move_gen = Self {
+            clear_rank: [0; 8],
+            clear_file: [0; 8],
+            mask_rank: [0; 8],
+            mask_file: [0; 8],
+            mask_diag: [0; 15],
+            mask_anti_diag: [0; 15],
+            north: [0; 64],
+            north_west: [0; 64],
+            west: [0; 64],
+            south_west: [0; 64],
+            south: [0; 64],
+            south_east: [0; 64],
+            east: [0; 64],
+            north_east: [0; 64],
+            knight_movement: [0; 64],
+            king_movement: [0; 64],
+        };
+        move_gen.initialize();
+        move_gen
+    }
+
     /// Initialize tables
-    pub fn initialize(&mut self) {
+    fn initialize(&mut self) {
         // initialize orthogonal mask tables
         for idx in 0..8 {
             self.mask_rank[idx] = fill_rank(idx as u8);
@@ -127,6 +151,7 @@ impl MoveGen {
             self.knight_movement[idx] |= (sq << 6) & (self.clear_file[6] & self.clear_file[7]);
             self.knight_movement[idx] |= (sq << 15) & self.clear_file[7];
         }
+
 
         // initialize king movement tables
         for idx in 0..64 {
@@ -406,7 +431,7 @@ impl MoveGen {
             })
         }
 
-        for (from_idx, to_idx) in self.parse_single_piece_moves(moves, king_idx).iter() {
+        for (from_idx, to_idx) in self.parse_single_piece_moves(captures, king_idx).iter() {
             move_list.push(Move {
                 from: *from_idx,
                 to: *to_idx,
@@ -529,6 +554,7 @@ impl MoveGen {
         ));
 
         for (from_idx, to_idx) in moves.iter() {
+            // TODO: faster just to use Board::identify? more elegatnt, certainly
             if ((1 << *from_idx) & queens) != 0 {
                 move_list.push(Move {
                     from: *from_idx,
@@ -1014,11 +1040,13 @@ pub struct Move {
     pub category: MoveCategory,
 }
 
+#[derive(PartialEq)]
 pub enum MoveCategory {
     Normal,
     Queenside,
     Kingside,
     EnPassant,
+    DoublePawnPush,
 }
 
 enum Axis {
