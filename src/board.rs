@@ -164,9 +164,19 @@ impl Board {
     /// Handles the subset of make_move that is an involution (self-inverting)
     /// Does not check move legality
     pub fn move_involution(&mut self, m: &moves::Move) {
-        let move_bb: u64 = (1 << m.from) | (1 << m.to);
-
-        self.own_pieces ^= move_bb;
+        let move_bb: u64 = match m.category {
+            // for promotions the piece field of m denotes promotion choice
+            moves::MoveCategory::Promotion => {
+                self.pawns ^= 1 << m.from;
+                self.own_pieces ^= (1 << m.from) | (1 << m.to);
+                1 << m.to
+            }
+            _ => {
+                let move_bb = (1 << m.from) | (1 << m.to);
+                self.own_pieces ^= move_bb;
+                move_bb
+            }
+        };
 
         // NOTE: knights do not require explicit treatment, as they are derived
         //  from the complement of all other pieces
@@ -369,7 +379,7 @@ pub enum Color {
     Black,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Copy, Clone)]
 pub enum Piece {
     Pawn,
     Bishop,

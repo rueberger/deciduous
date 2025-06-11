@@ -11,6 +11,13 @@ static DIAGONAL: u64 = 0x8040201008040201;
 // All bits set from a8-h1
 static ANTI_DIAGONAL: u64 = 0x0102040810204080;
 
+static PROMOTION_OPTIONS: [board::Piece; 4] = [
+    board::Piece::Bishop,
+    board::Piece::Knight,
+    board::Piece::Rook,
+    board::Piece::Queen,
+];
+
 /// This struct holds state required for move generation (tables)
 pub struct MoveGen {
     // Value at i performs the eponymous operation when '&'ed with a state
@@ -295,21 +302,22 @@ impl MoveGen {
     //         PAWN MOVE GEN
     // =================================
 
-    /// Return possible double and single pawn pushes
-    /// Does not treat captures, promotion or en passant
+    /// Return possible double and single pawn pushes, and promotions
     pub fn pawn_pushes(&self, board: &board::Board) -> Vec<Move> {
         let mut move_list = Vec::new();
 
         let own_pawns = board.own_pieces & board.pawns;
         let empty = board.empty();
 
-        let single_push = (own_pawns << 8) & empty;
-        let double_push = (single_push << 8) & empty;
+        let single_pushes = (own_pawns << 8) & empty;
+        let normal_single_pushes = single_pushes & self.clear_rank[7];
+        let promotions = single_pushes & self.mask_rank[7];
+        let double_pushes = ((((own_pawns & self.mask_rank[1]) << 8) & empty) << 8) & empty;
 
-        let single_pushes = self.parse_vertical_moves(single_push, own_pawns);
-        let double_pushes = self.parse_vertical_moves(double_push, own_pawns);
-
-        for (from_idx, to_idx) in single_pushes.iter() {
+        for (from_idx, to_idx) in self
+            .parse_vertical_moves(normal_single_pushes, own_pawns)
+            .iter()
+        {
             move_list.push(Move {
                 from: *from_idx,
                 to: *to_idx,
@@ -320,7 +328,20 @@ impl MoveGen {
             })
         }
 
-        for (from_idx, to_idx) in double_pushes.iter() {
+        for (from_idx, to_idx) in self.parse_vertical_moves(promotions, own_pawns).iter() {
+            for piece in PROMOTION_OPTIONS {
+                move_list.push(Move {
+                    from: *from_idx,
+                    to: *to_idx,
+                    piece: piece,
+                    color: board.color(),
+                    capture: None,
+                    category: MoveCategory::Promotion,
+                })
+            }
+        }
+
+        for (from_idx, to_idx) in self.parse_vertical_moves(double_pushes, own_pawns).iter() {
             move_list.push(Move {
                 from: *from_idx,
                 to: *to_idx,
@@ -334,20 +355,25 @@ impl MoveGen {
         move_list
     }
 
-    /// Return possible captures
+    // Return possible captures. Handles capture promotions and en passant.
     pub fn pawn_captures(&self, board: &board::Board) -> Vec<Move> {
         let mut move_list = Vec::new();
 
         let own_pawns = board.own_pieces & board.pawns;
 
-        let right_moves = (own_pawns << 9) & self.clear_file[0];
-        let right_captures = self.parse_diagonal_moves(right_moves & board.opp_pieces, own_pawns);
+        let right_captures = ((own_pawns << 9) & self.clear_file[0]) & board.opp_pieces;
+        let normal_right_captures =
+            self.parse_diagonal_moves(right_captures & self.clear_rank[7], own_pawns);
+        let right_capture_promotions =
+            self.parse_diagonal_moves(right_captures & self.mask_rank[7], own_pawns);
 
-        let left_moves = (own_pawns << 7) & self.clear_file[7];
-        let left_captures =
-            self.parse_anti_diagonal_moves(left_moves & board.opp_pieces, own_pawns);
+        let left_captures = ((own_pawns << 7) & self.clear_file[7]) & board.opp_pieces;
+        let normal_left_captures =
+            self.parse_anti_diagonal_moves(left_captures & self.clear_rank[7], own_pawns);
+        let left_capture_promotions =
+            self.parse_anti_diagonal_moves(left_captures & self.mask_rank[7], own_pawns);
 
-        for (from_idx, to_idx) in right_captures.iter() {
+        for (from_idx, to_idx) in normal_right_captures.iter() {
             move_list.push(Move {
                 from: *from_idx,
                 to: *to_idx,
@@ -358,7 +384,20 @@ impl MoveGen {
             })
         }
 
-        for (from_idx, to_idx) in left_captures.iter() {
+        for (from_idx, to_idx) in right_capture_promotions.iter() {
+            for piece in PROMOTION_OPTIONS {
+                move_list.push(Move {
+                    from: *from_idx,
+                    to: *to_idx,
+                    piece: piece,
+                    color: board.color(),
+                    capture: Some(board.identify(*to_idx)),
+                    category: MoveCategory::Promotion,
+                })
+            }
+        }
+
+        for (from_idx, to_idx) in normal_left_captures.iter() {
             move_list.push(Move {
                 from: *from_idx,
                 to: *to_idx,
@@ -367,6 +406,19 @@ impl MoveGen {
                 capture: Some(board.identify(*to_idx)),
                 category: MoveCategory::Normal,
             })
+        }
+
+        for (from_idx, to_idx) in left_capture_promotions.iter() {
+            for piece in PROMOTION_OPTIONS {
+                move_list.push(Move {
+                    from: *from_idx,
+                    to: *to_idx,
+                    piece: piece,
+                    color: board.color(),
+                    capture: Some(board.identify(*to_idx)),
+                    category: MoveCategory::Promotion,
+                })
+            }
         }
 
         let right_ep_move = (own_pawns << 33) & self.clear_file[0];
@@ -397,8 +449,6 @@ impl MoveGen {
 
         move_list
     }
-
-    // TODO: promotion
 
     // =================================
     //        KNIGHT MOVE GEN
@@ -445,7 +495,6 @@ impl MoveGen {
     //        KING MOVE GEN
     // =================================
 
-    // TODO: castling
     pub fn king_moves(&self, board: &board::Board) -> Vec<Move> {
         let mut move_list = Vec::new();
         let king_idx = board.own_king;
@@ -938,8 +987,6 @@ impl MoveGen {
         move_list.append(&mut self.ortho_moves(&board));
         move_list.append(&mut self.diag_moves(&board));
 
-        // TODO: knights, king
-
         // =================
         //    KNIGHT MOVES
         // =================
@@ -951,6 +998,7 @@ impl MoveGen {
         // =================
 
         move_list.append(&mut self.king_moves(&board));
+        move_list.append(&mut self.castling_moves(&board));
 
         move_list
     }
@@ -1097,6 +1145,7 @@ pub enum MoveCategory {
     KingsideCastle,
     EnPassant,
     DoublePawnPush,
+    Promotion,
 }
 
 enum Axis {
