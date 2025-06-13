@@ -9,6 +9,15 @@ static PROMOTION_OPTIONS: [board::Piece; 4] = [
     board::Piece::Queen,
 ];
 
+// subset of orientations a piece on the first rank can be threatened from
+static FIRST_RANK_THREAT_ORIENTATIONS: [Orientation; 5] = [
+    Orientation::East,
+    Orientation::NorthEast,
+    Orientation::North,
+    Orientation::NorthWest,
+    Orientation::West,
+];
+
 /// This struct holds state required for move generation (tables)
 pub struct MoveGen {
     // Value at i performs the eponymous operation when '&'ed with a state
@@ -548,12 +557,21 @@ impl MoveGen {
     // Returned moves describe rook moves
     pub fn castling_moves(&self, board: &board::Board) -> Vec<Move> {
         let mut move_list = Vec::new();
+
+        let king_threatened = self.threatened(4, &FIRST_RANK_THREAT_ORIENTATIONS, board);
+        if king_threatened {
+            return move_list;
+        }
+
         let occupied = board.own_pieces | board.opp_pieces;
 
         if board.own_castling_rights.kingside {
             let kingside_clearance = (1 << 5) | (1 << 6);
 
-            if (occupied & kingside_clearance) == 0 {
+            if (occupied & kingside_clearance) == 0
+                && !self.threatened(5, &FIRST_RANK_THREAT_ORIENTATIONS, board)
+                && !self.threatened(6, &FIRST_RANK_THREAT_ORIENTATIONS, board)
+            {
                 move_list.push(Move {
                     from: 7,
                     to: 5,
@@ -567,7 +585,10 @@ impl MoveGen {
         if board.own_castling_rights.queenside {
             let queenside_clearance = (1 << 1) | (1 << 2) | (1 << 3);
 
-            if (occupied & queenside_clearance) == 0 {
+            if (occupied & queenside_clearance) == 0
+                && !self.threatened(3, &FIRST_RANK_THREAT_ORIENTATIONS, board)
+                && !self.threatened(2, &FIRST_RANK_THREAT_ORIENTATIONS, board)
+            {
                 move_list.push(Move {
                     from: 0,
                     to: 3,
@@ -1022,48 +1043,55 @@ impl MoveGen {
     //     LEGAL MOVE GEN
     // ========================
 
-    // Counts the number of new threats sq may now be exposed to due to move
+    // Identifies new threats sq may now be exposed to due to move. Returns threat bitboard
     // Performs no checks for castling, legality of castling is delegated to primary move gen
-    fn exposed_threats(&self, sq: u8, m: &Move, board: &board::Board) -> u8 {
+    fn exposed_threats(&self, sq: u8, m: &Move, board: &board::Board) -> u64 {
         match m.category {
             MoveCategory::KingsideCastle => return 0,
             MoveCategory::QueensideCastle => return 0,
             MoveCategory::EnPassant => {
-                let mut threats: u8 = 0;
+                let mut threats: u64 = 0;
                 // check orientation exposed by movement of own pawn
                 match self.rel_orientation[(sq * 64 + m.from) as usize] {
-                    Some(orientation)  => {
-                        threats += self.sliding_threats(sq, &orientation, board)
-                    }
+                    Some(orientation) => threats |= self.sliding_threats(sq, &orientation, board),
                     None => (),
                 }
                 // check orientation exposed by now captured enemy pawn
                 match self.rel_orientation[(sq * 64 + m.to - 8) as usize] {
-                    Some(orientation)  => {
-                        threats += self.sliding_threats(sq, &orientation, board)
-                    }
+                    Some(orientation) => threats |= self.sliding_threats(sq, &orientation, board),
                     None => (),
                 }
                 threats
             }
-            _ => {
-                match self.rel_orientation[(sq * 64 + m.from) as usize] {
-                    Some(orientation)  => {
-                        self.sliding_threats(sq, &orientation, board)
-                    }
-                    None => 0
-                }
-            }
+            _ => match self.rel_orientation[(sq * 64 + m.from) as usize] {
+                Some(orientation) => self.sliding_threats(sq, &orientation, board),
+                None => 0,
+            },
         }
     }
 
-    // Counts the number of threats sq is exposed to in orientation
-    fn sliding_threats(&self, sq: u8, orientation: &Orientation, board: &board::Board) -> u8 {
+    // Identifies threats sq is exposed to in dir orientation
+    fn sliding_threats(&self, sq: u8, orientation: &Orientation, board: &board::Board) -> u64 {
         // enemy sliders are excluded from mask so occluded enemy sliders will be correctly counted
         let enemy_sliders = board.sliders(&orientation) & board.opp_pieces;
-        let mask = board.empty() ^ enemy_sliders;
+        let mask = board.empty() | enemy_sliders;
         let exposed_bb = self.sliding_attacks(&orientation, 1 << sq, mask);
-        pop_count(exposed_bb & enemy_sliders)
+        exposed_bb & enemy_sliders
+    }
+
+    // Checks if sq is threatened by knights or by sliding pieces in list of orientations
+    fn threatened(&self, sq: u8, orientations: &[Orientation], board: &board::Board) -> bool {
+        if self.knight_movement[sq as usize] & board.knights() & board.opp_pieces != 0 {
+            return true;
+        }
+
+        for orientation in orientations {
+            if self.sliding_threats(sq, orientation, board) != 0 {
+                return true;
+            }
+        }
+
+        false
     }
 }
 
@@ -1227,7 +1255,6 @@ impl Orientation {
         ]
     }
 
-
     fn ray(&self, move_gen: &MoveGen, sq_idx: usize) -> u64 {
         match self {
             Orientation::North => return move_gen.north[sq_idx],
@@ -1253,8 +1280,6 @@ impl Orientation {
             Orientation::NorthWest => 7,
         }
     }
-
-
 }
 
 // TODO: move test module to descendent of move gen module to test private details
