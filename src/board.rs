@@ -104,6 +104,28 @@ pub struct Board {
 }
 
 impl Board {
+    pub fn new() -> Self {
+        let board = Board {
+            own_pieces: WHITE_PIECES,
+            opp_pieces: BLACK_PIECES,
+            ortho_sliders: ROOKS | QUEENS,
+            diag_sliders: BISHOPS | QUEENS,
+            pawns: PAWNS,
+            own_king: square_index(0, 4) as u8,
+            opp_king: square_index(7, 4) as u8,
+            own_castling_rights: CastlingRights {
+                kingside: true,
+                queenside: true,
+            },
+            opp_castling_rights: CastlingRights {
+                kingside: true,
+                queenside: true,
+            },
+            flipped: false,
+        };
+        board
+    }
+
     // TODO: add tests
     pub fn color_flip(&mut self) {
         self.own_pieces = self.own_pieces.to_be();
@@ -369,35 +391,15 @@ pub struct UndoInfo {
     en_passant_state: u8,
 }
 
-pub fn init_board() -> Board {
-    let board = Board {
-        own_pieces: WHITE_PIECES,
-        opp_pieces: BLACK_PIECES,
-        ortho_sliders: ROOKS | QUEENS,
-        diag_sliders: BISHOPS | QUEENS,
-        pawns: PAWNS,
-        own_king: square_index(0, 4) as u8,
-        opp_king: square_index(7, 4) as u8,
-        own_castling_rights: CastlingRights {
-            kingside: true,
-            queenside: true,
-        },
-        opp_castling_rights: CastlingRights {
-            kingside: true,
-            queenside: true,
-        },
-        flipped: false,
-    };
-    board
-}
 
-#[derive(Copy, Clone)]
+
+#[derive(Copy, Clone, Debug)]
 pub enum Color {
     White,
     Black,
 }
 
-#[derive(PartialEq, Copy, Clone)]
+#[derive(PartialEq, Copy, Clone, Debug)]
 pub enum Piece {
     Pawn,
     Bishop,
