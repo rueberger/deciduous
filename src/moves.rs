@@ -1168,6 +1168,7 @@ fn pop_count(state: u64) -> u8 {
 }
 
 // TODO: I don't think color is necessary
+#[derive(Debug)]
 pub struct Move {
     pub from: u8, // integer 0-63
     pub to: u8,   // integer 0-63
@@ -1177,7 +1178,7 @@ pub struct Move {
     pub category: MoveCategory,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum MoveCategory {
     Normal,
     QueensideCastle,
@@ -1282,10 +1283,37 @@ impl Orientation {
     }
 }
 
-// TODO: move test module to descendent of move gen module to test private details
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // there isn't really a notion of empty castling rights, so those are left to the default
+    fn empty_board() -> board::Board {
+        let mut b = board::Board::new();
+        b.own_pieces = 0;
+        b.opp_pieces = 0;
+        b.ortho_sliders = 0;
+        b.diag_sliders = 0;
+        b.pawns = 0;
+        b.own_king = 0;
+        b.opp_king = 0;
+        b
+    }
+
+    fn pawns(own_pawns: Vec<u8>, opp_pawns: Vec<u8>) -> board::Board {
+        let mut b = empty_board();
+        for own_pawn in own_pawns.iter() {
+            b.own_pieces |= 1 << own_pawn;
+            b.pawns |= 1 << own_pawn;
+        }
+
+        for opp_pawn in opp_pawns.iter() {
+            b.opp_pieces |= 1 << opp_pawn;
+            b.pawns |= 1 << opp_pawn;
+        }
+
+        b
+    }
 
     #[test]
     fn test_fill_rank_0() {
@@ -1318,5 +1346,123 @@ mod tests {
         test_vec.push(5);
         test_board |= 1 << 5;
         assert_eq!(test_vec, serialize_board(test_board));
+    }
+
+    #[test]
+    fn single_pawn_second_rank_push() {
+        let move_gen = MoveGen::new();
+
+        for file_idx in 0..7 {
+            let b = pawns(vec![board::square_index(1, file_idx)], Vec::new());
+            assert_eq!(move_gen.pawn_pushes(&b).len(), 2);
+        }
+    }
+
+    #[test]
+    fn single_pawn_other_rank_push() {
+        let move_gen = MoveGen::new();
+
+        for rank_idx in 3..6 {
+            for file_idx in 0..7 {
+                let b = pawns(vec![board::square_index(rank_idx, file_idx)], Vec::new());
+                assert_eq!(move_gen.pawn_pushes(&b).len(), 1);
+            }
+        }
+    }
+
+    #[test]
+    fn two_pawn_second_rank_push() {
+        let move_gen = MoveGen::new();
+
+        for file_idx in 0..6 {
+            let b = pawns(
+                vec![
+                    board::square_index(1, file_idx),
+                    board::square_index(1, file_idx + 1),
+                ],
+                Vec::new(),
+            );
+            assert_eq!(move_gen.pawn_pushes(&b).len(), 4);
+        }
+    }
+
+    #[test]
+    fn two_pawn_other_rank_push() {
+        let move_gen = MoveGen::new();
+
+        for rank_idx in 3..6 {
+            for file_idx in 0..6 {
+                let b = pawns(
+                    vec![
+                        board::square_index(rank_idx, file_idx),
+                        board::square_index(rank_idx, file_idx + 1),
+                    ],
+                    Vec::new(),
+                );
+                assert_eq!(move_gen.pawn_pushes(&b).len(), 2);
+            }
+        }
+    }
+
+    #[test]
+    fn single_pawn_promotion() {
+        let move_gen = MoveGen::new();
+
+        for file_idx in 0..7 {
+            let b = pawns(vec![board::square_index(6, file_idx)], Vec::new());
+
+            let moves = move_gen.pawn_pushes(&b);
+            assert_eq!(moves.len(), 4);
+
+            for m in moves.iter() {
+                assert_eq!(m.category, MoveCategory::Promotion);
+            }
+        }
+    }
+
+    #[test]
+    fn two_pawn_promotion() {
+        let move_gen = MoveGen::new();
+
+        for file_idx in 0..6 {
+            let b = pawns(
+                vec![
+                    board::square_index(6, file_idx),
+                    board::square_index(6, file_idx + 1),
+                ],
+                Vec::new(),
+            );
+
+            let moves = move_gen.pawn_pushes(&b);
+            assert_eq!(moves.len(), 8);
+
+            for m in moves.iter() {
+                assert_eq!(m.category, MoveCategory::Promotion);
+            }
+        }
+    }
+
+    #[test]
+    fn one_pawn_normal_capture() {
+        let move_gen = MoveGen::new();
+
+        for rank_idx in 1..5 {
+            for file_idx in 1..6 {
+                let b = pawns(
+                    vec![board::square_index(rank_idx, file_idx)],
+                    vec![
+                        board::square_index(rank_idx + 1, file_idx - 1),
+                        board::square_index(rank_idx + 1, file_idx + 1),
+                    ],
+                );
+
+                let moves = move_gen.pawn_captures(&b);
+                assert_eq!(moves.len(), 2, "rank_idx: {rank_idx}, file_idx: {file_idx}, moves: {moves:#?}");
+
+                for m in moves.iter() {
+                    assert_eq!(m.capture, Some(board::Piece::Pawn));
+                }
+            }
+        }
     }
 }
