@@ -23,12 +23,20 @@ static ROOKS: u64 = 9295429630892703873;
 static KINGS: u64 = 576460752303423496;
 // The initial location of the queens
 static QUEENS: u64 = 1152921504606846992;
+// All bits set in the a-file
+pub static A_FILE: u64 = 0x0101010101010101;
+// All bits set in the 1st-rank
+pub static FIRST_RANK: u64 = 0x00000000000000FF;
+// All bits excepting the first rank set
+static CLEAR_FIRST_RANK: u64 = 18446744073709551360;
+// All bits set from a1-h8
+static DIAGONAL: u64 = 0x8040201008040201;
+// All bits set from a8-h1
+static ANTI_DIAGONAL: u64 = 0x0102040810204080;
 // The empty set with no bits set
 static EMPTY_SET: u64 = 0;
 // The universal set with all bits set
-static UNIVERSAL_SET: u64 = 18446744073709551615;
-// All bits excepting the first rank set
-static CLEAR_FIRST_RANK: u64 = 18446744073709551360;
+pub static UNIVERSAL_SET: u64 = 18446744073709551615;
 
 /// Square ordering is Little-Endian Rank-File
 ///
@@ -127,6 +135,16 @@ impl Board {
     pub fn queens(&self) -> u64 {
         self.diag_sliders & self.ortho_sliders
     }
+
+    pub fn sliders(&self, orientation: &moves::Orientation) -> u64 {
+        match orientation.axis() {
+            moves::Axis::Rank =>  self.ortho_sliders,
+            moves::Axis::File => self.ortho_sliders,
+            moves::Axis::Diagonal => self.diag_sliders,
+            moves::Axis::AntiDiagonal => self.diag_sliders
+        }
+    }
+
 
     pub fn knights(&self) -> u64 {
         let kings = ((1 as u64) << self.own_king) | ((1 as u64) << self.opp_king);

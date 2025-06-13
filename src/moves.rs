@@ -2,15 +2,6 @@
 use crate::board;
 use crate::utils;
 
-// All bits set in the a-file
-static A_FILE: u64 = 0x0101010101010101;
-// All bits set in the 1st-rank
-static FIRST_RANK: u64 = 0x00000000000000FF;
-// All bits set from a1-h8
-static DIAGONAL: u64 = 0x8040201008040201;
-// All bits set from a8-h1
-static ANTI_DIAGONAL: u64 = 0x0102040810204080;
-
 static PROMOTION_OPTIONS: [board::Piece; 4] = [
     board::Piece::Bishop,
     board::Piece::Knight,
@@ -49,6 +40,11 @@ pub struct MoveGen {
     east: [u64; 64],
     north_east: [u64; 64],
 
+    // TODO: use 2d array struct
+    // Cardinal direction from from to to if it exists, empty if not
+    // Indexed as from * 64 + to
+    rel_orientation: [Option<Orientation>; 64 * 64],
+
     //  Knight compass rose:
     //
     //        noNoWe    noNoEa
@@ -84,6 +80,7 @@ impl MoveGen {
             south_east: [0; 64],
             east: [0; 64],
             north_east: [0; 64],
+            rel_orientation: [None; 4096],
             knight_movement: [0; 64],
             king_movement: [0; 64],
         };
@@ -145,6 +142,21 @@ impl MoveGen {
             self.south_west[idx] &= !(1 << idx);
         }
 
+        // rel orientation
+        for from in 0..64 {
+            for ori in Orientation::ortho() {
+                for to in serialize_board(ori.ray(&self, from)) {
+                    self.rel_orientation[from * 64 + to as usize] = Some(ori);
+                }
+            }
+
+            for ori in Orientation::diag() {
+                for to in serialize_board(ori.ray(&self, from)) {
+                    self.rel_orientation[from * 64 + to as usize] = Some(ori);
+                }
+            }
+        }
+
         // initialize knight movement tables
         for idx in 0..64 {
             let sq = 1 << idx;
@@ -174,20 +186,7 @@ impl MoveGen {
         }
     }
 
-    // TODO: deprecate? kinda useless
-    pub fn ray(&self, sq_idx: usize, orientation: &Orientation) -> u64 {
-        match orientation {
-            Orientation::North => return self.north[sq_idx],
-            Orientation::NorthEast => return self.north_east[sq_idx],
-            Orientation::East => return self.east[sq_idx],
-            Orientation::SouthEast => return self.south_east[sq_idx],
-            Orientation::South => return self.south[sq_idx],
-            Orientation::SouthWest => return self.south_west[sq_idx],
-            Orientation::West => return self.west[sq_idx],
-            Orientation::NorthWest => return self.north_west[sq_idx],
-        }
-    }
-
+    // TODO: I am skeptical about the correctness of these fills
     /// Calculates all north attacks using dumb7fill
     ///
     /// Args:
@@ -209,7 +208,7 @@ impl MoveGen {
     pub fn north_east_attacks(&self, sliders: u64, empty: u64) -> u64 {
         let mut flood = sliders;
         let mask = empty & self.clear_file[0];
-        for _ in 0..7 {
+        for _ in 0..15 {
             flood |= (flood << 9) & mask;
         }
         (flood << 9) & self.clear_file[0]
@@ -237,7 +236,7 @@ impl MoveGen {
     pub fn south_east_attacks(&self, sliders: u64, empty: u64) -> u64 {
         let mut flood = sliders;
         let mask = empty & self.clear_file[0];
-        for _ in 0..7 {
+        for _ in 0..15 {
             flood |= (flood >> 7) & mask;
         }
         (flood >> 7) & self.clear_file[0]
@@ -264,7 +263,7 @@ impl MoveGen {
     pub fn south_west_attacks(&self, sliders: u64, empty: u64) -> u64 {
         let mut flood = sliders;
         let mask = empty & self.clear_file[7];
-        for _ in 0..7 {
+        for _ in 0..15 {
             flood |= (flood >> 9) & mask;
         }
         (flood >> 9) & self.clear_file[7]
@@ -292,10 +291,24 @@ impl MoveGen {
     pub fn north_west_attacks(&self, sliders: u64, empty: u64) -> u64 {
         let mut flood = sliders;
         let mask = empty & self.clear_file[7];
-        for _ in 0..7 {
+        for _ in 0..15 {
             flood |= (flood << 7) & mask;
         }
         (flood << 7) & self.clear_file[7]
+    }
+
+    // Calculates all sliding attacks with dumb fill by dispatch
+    fn sliding_attacks(&self, orientation: &Orientation, sliders: u64, empty: u64) -> u64 {
+        match orientation {
+            Orientation::North => self.north_attacks(sliders, empty),
+            Orientation::NorthEast => self.north_east_attacks(sliders, empty),
+            Orientation::East => self.east_attacks(sliders, empty),
+            Orientation::SouthEast => self.south_east_attacks(sliders, empty),
+            Orientation::South => self.south_attacks(sliders, empty),
+            Orientation::SouthWest => self.south_west_attacks(sliders, empty),
+            Orientation::West => self.west_attacks(sliders, empty),
+            Orientation::NorthWest => self.north_west_attacks(sliders, empty),
+        }
     }
 
     // =================================
@@ -530,9 +543,9 @@ impl MoveGen {
         move_list
     }
 
+    // TODO: must check the squares we're passing through for check, must also check king square
     // Pseudo-legal castling move generation
     // Returned moves describe rook moves
-    // NOTE: must check the squares we're passing through for check
     pub fn castling_moves(&self, board: &board::Board) -> Vec<Move> {
         let mut move_list = Vec::new();
         let occupied = board.own_pieces | board.opp_pieces;
@@ -573,6 +586,7 @@ impl MoveGen {
     //         SLIDING MOVE GEN
     // =================================
 
+    // TODO: obvious bugs, using all sliders not enemy sliders. just rewrite
     /// Returns all possible orthogonal moves (rooks and queens)
     pub fn ortho_moves(&self, board: &board::Board) -> Vec<Move> {
         let mut move_list: Vec<Move> = Vec::new();
@@ -850,11 +864,12 @@ impl MoveGen {
 
         // 2. generate up to 3 masks
         // the first mask requires special handling
-        masks.push(self.ray(sorted_piece_idxs[0] as usize, &orientation));
+        masks.push(orientation.ray(&self, sorted_piece_idxs[0] as usize));
         for idx in 1..sorted_piece_idxs.len() {
-            let forward_mask = self.ray(sorted_piece_idxs[idx] as usize, &orientation);
-            let backward_mask =
-                self.ray(sorted_piece_idxs[idx - 1] as usize, &orientation.antipode());
+            let forward_mask = orientation.ray(&self, sorted_piece_idxs[idx] as usize);
+            let backward_mask = orientation
+                .antipode()
+                .ray(&self, sorted_piece_idxs[idx - 1] as usize);
             masks.push(forward_mask & backward_mask)
         }
 
@@ -965,12 +980,12 @@ impl MoveGen {
         move_list
     }
 
-    // =================================
-    //   PSEUDO-LEGAL MOVE LIST GEN
-    // =================================
+    // ========================
+    //   PSEUDO-LEGAL MOVE GEN
+    // ========================
 
     /// Generate all pseudo-legal moves
-    fn psuedo_legal_moves(&self, board: board::Board) -> Vec<Move> {
+    pub fn psuedo_legal_moves(&self, board: board::Board) -> Vec<Move> {
         let mut move_list = Vec::new();
 
         // =================
@@ -1002,65 +1017,61 @@ impl MoveGen {
 
         move_list
     }
+
+    // ========================
+    //     LEGAL MOVE GEN
+    // ========================
+
+    // Counts the number of new threats sq may now be exposed to due to move
+    // Performs no checks for castling, legality of castling is delegated to primary move gen
+    fn exposed_threats(&self, sq: u8, m: &Move, board: &board::Board) -> u8 {
+        match m.category {
+            MoveCategory::KingsideCastle => return 0,
+            MoveCategory::QueensideCastle => return 0,
+            MoveCategory::EnPassant => {
+                let mut threats: u8 = 0;
+                // check orientation exposed by movement of own pawn
+                match self.rel_orientation[(sq * 64 + m.from) as usize] {
+                    Some(orientation)  => {
+                        threats += self.sliding_threats(sq, &orientation, board)
+                    }
+                    None => (),
+                }
+                // check orientation exposed by now captured enemy pawn
+                match self.rel_orientation[(sq * 64 + m.to - 8) as usize] {
+                    Some(orientation)  => {
+                        threats += self.sliding_threats(sq, &orientation, board)
+                    }
+                    None => (),
+                }
+                threats
+            }
+            _ => {
+                match self.rel_orientation[(sq * 64 + m.from) as usize] {
+                    Some(orientation)  => {
+                        self.sliding_threats(sq, &orientation, board)
+                    }
+                    None => 0
+                }
+            }
+        }
+    }
+
+    // Counts the number of threats sq is exposed to in orientation
+    fn sliding_threats(&self, sq: u8, orientation: &Orientation, board: &board::Board) -> u8 {
+        // enemy sliders are excluded from mask so occluded enemy sliders will be correctly counted
+        let enemy_sliders = board.sliders(&orientation) & board.opp_pieces;
+        let mask = board.empty() ^ enemy_sliders;
+        let exposed_bb = self.sliding_attacks(&orientation, 1 << sq, mask);
+        pop_count(exposed_bb & enemy_sliders)
+    }
 }
-
-pub fn init_move_gen() -> MoveGen {
-    let mut move_gen = MoveGen {
-        clear_rank: [0; 8],
-        clear_file: [0; 8],
-        mask_rank: [0; 8],
-        mask_file: [0; 8],
-        mask_diag: [0; 15],
-        mask_anti_diag: [0; 15],
-        north: [0; 64],
-        north_west: [0; 64],
-        west: [0; 64],
-        south_west: [0; 64],
-        south: [0; 64],
-        south_east: [0; 64],
-        east: [0; 64],
-        north_east: [0; 64],
-        knight_movement: [0; 64],
-        king_movement: [0; 64],
-    };
-    move_gen
-}
-
-// fn make_move(board: &mut [u64; 8], m: Move) -> &mut [u64; 8] {
-//     match m.color {
-//         Color::White => {
-//             board[0] ^= 1 << m.from;
-//             board[0] ^= 1 << m.to;
-//             if let Some(_capture) = &m.capture {
-//                 board[1] ^= 1 << m.to
-//             }
-//         }
-//         Color::Black => {
-//             board[1] ^= 1 << m.from;
-//             board[1] ^= 1 << m.to;
-//             if let Some(_capture) = &m.capture {
-//                 board[0] ^= 1 << m.to;
-//             }
-//         }
-//     }
-//     if let Some(capture) = &m.capture {
-//         board[capture.board_index() as usize] ^= 1 << m.to;
-//     }
-//     board[m.piece.board_index()] ^= 1 << m.from;
-//     board[m.piece.board_index()] ^= 1 << m.to;
-//     return board;
-// }
-
-// fn unmake_move(board: &mut [u64; 8], m: Move) -> &mut [u64; 8] {
-//     // xor is its own inverse operation
-//     return make_move(board, m)
-// }
 
 /// Fill rank at rank_idx
 fn fill_rank(rank_idx: u8) -> u64 {
     assert!(rank_idx < 8);
 
-    let mut result: u64 = FIRST_RANK;
+    let result: u64 = board::FIRST_RANK;
     result << (rank_idx * 8)
 }
 
@@ -1068,7 +1079,7 @@ fn fill_rank(rank_idx: u8) -> u64 {
 fn fill_file(file_idx: u8) -> u64 {
     assert!(file_idx < 8);
 
-    let mut result: u64 = A_FILE;
+    let result: u64 = board::A_FILE;
     result << file_idx
 }
 
@@ -1148,7 +1159,7 @@ pub enum MoveCategory {
     Promotion,
 }
 
-enum Axis {
+pub enum Axis {
     // horizontal
     Rank,
     // vertical
@@ -1157,7 +1168,8 @@ enum Axis {
     AntiDiagonal,
 }
 
-enum Orientation {
+#[derive(Copy, Clone)]
+pub enum Orientation {
     North,
     NorthEast,
     East,
@@ -1196,6 +1208,53 @@ impl Orientation {
             Orientation::NorthWest => Axis::AntiDiagonal,
         }
     }
+
+    fn ortho() -> [Orientation; 4] {
+        [
+            Orientation::North,
+            Orientation::East,
+            Orientation::South,
+            Orientation::West,
+        ]
+    }
+
+    fn diag() -> [Orientation; 4] {
+        [
+            Orientation::NorthEast,
+            Orientation::SouthEast,
+            Orientation::SouthWest,
+            Orientation::NorthWest,
+        ]
+    }
+
+
+    fn ray(&self, move_gen: &MoveGen, sq_idx: usize) -> u64 {
+        match self {
+            Orientation::North => return move_gen.north[sq_idx],
+            Orientation::NorthEast => return move_gen.north_east[sq_idx],
+            Orientation::East => return move_gen.east[sq_idx],
+            Orientation::SouthEast => return move_gen.south_east[sq_idx],
+            Orientation::South => return move_gen.south[sq_idx],
+            Orientation::SouthWest => return move_gen.south_west[sq_idx],
+            Orientation::West => return move_gen.west[sq_idx],
+            Orientation::NorthWest => return move_gen.north_west[sq_idx],
+        }
+    }
+
+    fn shift(&self) -> i8 {
+        match self {
+            Orientation::North => 8,
+            Orientation::NorthEast => 9,
+            Orientation::East => 1,
+            Orientation::SouthEast => -7,
+            Orientation::South => -8,
+            Orientation::SouthWest => -9,
+            Orientation::West => -1,
+            Orientation::NorthWest => 7,
+        }
+    }
+
+
 }
 
 // TODO: move test module to descendent of move gen module to test private details
@@ -1205,12 +1264,12 @@ mod tests {
 
     #[test]
     fn test_fill_rank_0() {
-        assert_eq!(fill_rank(0), FIRST_RANK);
+        assert_eq!(fill_rank(0), board::FIRST_RANK);
     }
 
     #[test]
     fn test_fill_file_0() {
-        assert_eq!(fill_file(0), A_FILE)
+        assert_eq!(fill_file(0), board::A_FILE)
     }
 
     #[test]
