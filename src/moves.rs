@@ -1316,6 +1316,29 @@ mod tests {
         b
     }
 
+    fn set_piece(mut b: board::Board, own: bool, sq: u8, piece: board::Piece) -> board::Board {
+        match piece {
+            board::Piece::Bishop => b.diag_sliders |= 1 << sq,
+            board::Piece::Rook => b.ortho_sliders |= 1 << sq,
+            board::Piece::Queen => {
+                b.diag_sliders |= 1 << sq;
+                b.ortho_sliders |= 1 << sq
+            }
+            board::Piece::Pawn => b.pawns |= 1 << sq,
+            board::Piece::Knight => (),
+            board::Piece::King => match own {
+                true => b.own_king = sq,
+                false => b.opp_king = sq,
+            },
+        }
+        match own {
+            true => b.own_pieces |= 1 << sq,
+            false => b.opp_pieces |= 1 << sq,
+        }
+
+        b
+    }
+
     #[test]
     fn test_fill_rank_0() {
         assert_eq!(fill_rank(0), board::FIRST_RANK);
@@ -1593,4 +1616,48 @@ mod tests {
         }
     }
 
+    #[test]
+    fn one_pawn_promotion_capture() {
+        let move_gen = MoveGen::new();
+
+        // check for allowed captures
+        for file_idx in 1..6 {
+            for capture_piece in [
+                board::Piece::Bishop,
+                board::Piece::Rook,
+                board::Piece::Queen,
+                board::Piece::Knight,
+                board::Piece::King,
+            ] {
+                for capture_side in [-1, 1] {
+                    let mut b = pawns(vec![board::square_index(6, file_idx)], Vec::new());
+                    let b = set_piece(
+                        b,
+                        false,
+                        board::square_index(7, (file_idx as i8 + capture_side) as u8),
+                        capture_piece,
+                    );
+
+                    let moves = move_gen.pawn_captures(&b);
+                    assert_eq!(moves.len(), 4);
+                    for m in moves.iter() {
+                        assert_eq!(m.capture, Some(capture_piece));
+                        assert_eq!(m.category, MoveCategory::Promotion);
+                    }
+                }
+            }
+        }
+
+        // check nothing weird happens with ep bits
+        for file_idx in 1..6 {
+            for capture_side in [-1, 1] {
+                let mut b = pawns(vec![board::square_index(6, file_idx)], Vec::new());
+                let ep_bit_sq = board::square_index(7, (file_idx as i8 + capture_side) as u8);
+                b.pawns |= 1 << ep_bit_sq;
+
+                let moves = move_gen.pawn_captures(&b);
+                assert_eq!(moves.len(), 0);
+            }
+        }
+    }
 }
