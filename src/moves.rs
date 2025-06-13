@@ -1458,7 +1458,11 @@ mod tests {
                 );
 
                 let moves = move_gen.pawn_captures(&b);
-                assert_eq!(moves.len(), 2, "rank_idx: {rank_idx}, file_idx: {file_idx}, moves: {moves:#?}");
+                assert_eq!(
+                    moves.len(),
+                    2,
+                    "rank_idx: {rank_idx}, file_idx: {file_idx}, moves: {moves:#?}"
+                );
 
                 for m in moves.iter() {
                     assert_eq!(m.capture, Some(board::Piece::Pawn));
@@ -1466,4 +1470,127 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn two_pawn_normal_capture() {
+        let move_gen = MoveGen::new();
+
+        for rank_idx in 1..5 {
+            for file_idx in 1..5 {
+                let b = pawns(
+                    vec![
+                        board::square_index(rank_idx, file_idx),
+                        board::square_index(rank_idx, file_idx + 1),
+                    ],
+                    vec![
+                        board::square_index(rank_idx + 1, file_idx - 1),
+                        board::square_index(rank_idx + 1, file_idx),
+                        board::square_index(rank_idx + 1, file_idx + 1),
+                        board::square_index(rank_idx + 1, file_idx + 2),
+                    ],
+                );
+
+                let moves = move_gen.pawn_captures(&b);
+                assert_eq!(
+                    moves.len(),
+                    4,
+                    "rank_idx: {rank_idx}, file_idx: {file_idx}, moves: {moves:#?}"
+                );
+
+                for m in moves.iter() {
+                    assert_eq!(m.capture, Some(board::Piece::Pawn));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn one_pawn_normal_capture_wrap_l() {
+        let move_gen = MoveGen::new();
+
+        for rank_idx in 1..5 {
+            let b = pawns(
+                vec![board::square_index(rank_idx, 0)],
+                vec![
+                    board::square_index(rank_idx, 7),
+                    board::square_index(rank_idx + 1, 1),
+                ],
+            );
+
+            let moves = move_gen.pawn_captures(&b);
+            assert_eq!(moves.len(), 1, "moves: {moves:#?}");
+
+            for m in moves.iter() {
+                assert_eq!(m.capture, Some(board::Piece::Pawn));
+            }
+        }
+    }
+
+    #[test]
+    fn one_pawn_normal_capture_wrap_r() {
+        let move_gen = MoveGen::new();
+
+        for rank_idx in 1..5 {
+            let b = pawns(
+                vec![board::square_index(rank_idx, 7)],
+                vec![
+                    board::square_index(rank_idx + 1, 6),
+                    board::square_index(rank_idx + 2, 0),
+                ],
+            );
+
+            let moves = move_gen.pawn_captures(&b);
+            assert_eq!(moves.len(), 1, "moves: {moves:#?}");
+
+            for m in moves.iter() {
+                assert_eq!(m.capture, Some(board::Piece::Pawn));
+            }
+        }
+    }
+
+    #[test]
+    fn one_pawn_ep_capture() {
+        let move_gen = MoveGen::new();
+
+        for file_idx in 1..6 {
+            for ep_side in [-1, 1] {
+                let b = pawns(
+                    vec![board::square_index(4, file_idx)],
+                    vec![board::square_index(7, (file_idx as i8 + ep_side) as u8)],
+                );
+
+                let moves = move_gen.pawn_captures(&b);
+                assert_eq!(moves.len(), 1, "moves: {moves:#?}");
+
+                for m in moves.iter() {
+                    assert_eq!(m.capture, Some(board::Piece::Pawn));
+                    assert_eq!(m.category, MoveCategory::EnPassant);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn two_pawn_ep_capture() {
+        let move_gen = MoveGen::new();
+
+        for file_idx in 1..6 {
+            let b = pawns(
+                vec![
+                    board::square_index(4, file_idx - 1),
+                    board::square_index(4, file_idx + 1),
+                ],
+                vec![board::square_index(7, file_idx)],
+            );
+
+            let moves = move_gen.pawn_captures(&b);
+            assert_eq!(moves.len(), 2, "moves: {moves:#?}");
+
+            for m in moves.iter() {
+                assert_eq!(m.capture, Some(board::Piece::Pawn));
+                assert_eq!(m.category, MoveCategory::EnPassant);
+            }
+        }
+    }
+
 }
