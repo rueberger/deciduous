@@ -382,6 +382,7 @@ impl MoveGen {
         let mut move_list = Vec::new();
 
         let own_pawns = board.own_pieces & board.pawns;
+        let opp_pawns = board.opp_pieces & board.pawns;
 
         let right_captures = ((own_pawns << 9) & self.clear_file[0]) & board.opp_pieces;
         let normal_right_captures =
@@ -443,8 +444,8 @@ impl MoveGen {
             }
         }
 
-        let right_ep_move = (own_pawns << 33) & self.clear_file[0];
-        if right_ep_move != 0 {
+        let right_ep_move = (own_pawns << 25) & self.clear_file[0];
+        if right_ep_move & opp_pawns != 0 {
             let (from_idx, to_idx) = self.parse_ep_capture_move(right_ep_move, Orientation::East);
             move_list.push(Move {
                 from: from_idx,
@@ -456,9 +457,9 @@ impl MoveGen {
             })
         }
 
-        let left_ep_move = (own_pawns << 31) & self.clear_file[7];
-        if left_ep_move != 0 {
-            let (from_idx, to_idx) = self.parse_ep_capture_move(right_ep_move, Orientation::West);
+        let left_ep_move = (own_pawns << 23) & self.clear_file[7];
+        if left_ep_move & opp_pawns != 0 {
+            let (from_idx, to_idx) = self.parse_ep_capture_move(left_ep_move, Orientation::West);
             move_list.push(Move {
                 from: from_idx,
                 to: to_idx,
