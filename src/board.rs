@@ -22,7 +22,7 @@ static ROOKS: u64 = 9295429630892703873;
 // The initial location of the kings
 static KINGS: u64 = 576460752303423496;
 // The initial location of the queens
-static QUEENS: u64 = 1152921504606846992;
+static QUEENS: u64 = 576460752303423496;
 // All bits set in the a-file
 pub static A_FILE: u64 = 0x0101010101010101;
 // All bits set in the 1st-rank
@@ -330,12 +330,14 @@ impl Board {
         undo
     }
 
+    // TODO: should consume undo info?
     /// unmake move. Mutates state of self.
     /// Does not check move legality
     pub fn unmake_move(&mut self, m: &moves::Move, undo: &UndoInfo) {
         self.move_involution(m);
 
         match m.category {
+
             moves::MoveCategory::KingsideCastle => {
                 self.own_king = 4;
                 self.own_pieces ^= (1 << 4) | (1 << 6);
@@ -384,7 +386,7 @@ impl CastlingRights {
     }
 }
 
-// TODO: doesn't need to be public?
+
 pub struct UndoInfo {
     pub own_castling_rights: CastlingRights,
     pub opp_castling_rights: CastlingRights,
