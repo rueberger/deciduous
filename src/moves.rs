@@ -1,4 +1,6 @@
 /// Module containing all move generation logic
+use std::iter;
+
 use crate::board;
 use crate::utils;
 
@@ -1007,7 +1009,7 @@ impl MoveGen {
     // ========================
 
     /// Generate all pseudo-legal moves
-    pub fn psuedo_legal_moves(&self, board: board::Board) -> Vec<Move> {
+    pub fn pseudo_legal_moves(&self, board: &board::Board) -> Vec<Move> {
         let mut move_list = Vec::new();
 
         // =================
@@ -1053,18 +1055,18 @@ impl MoveGen {
             MoveCategory::EnPassant => {
                 let mut threats: u64 = 0;
                 // check orientation exposed by movement of own pawn
-                match self.rel_orientation[(sq * 64 + m.from) as usize] {
+                match self.rel_orientation[(sq as usize) * 64 + (m.from as usize)] {
                     Some(orientation) => threats |= self.sliding_threats(sq, &orientation, board),
                     None => (),
                 }
                 // check orientation exposed by now captured enemy pawn
-                match self.rel_orientation[(sq * 64 + m.to - 8) as usize] {
+                match self.rel_orientation[(sq as usize) * 64 + (m.from as usize)] {
                     Some(orientation) => threats |= self.sliding_threats(sq, &orientation, board),
                     None => (),
                 }
                 threats
             }
-            _ => match self.rel_orientation[(sq * 64 + m.from) as usize] {
+            _ => match self.rel_orientation[(sq as usize) * 64 + (m.from as usize)] {
                 Some(orientation) => self.sliding_threats(sq, &orientation, board),
                 None => 0,
             },
@@ -1094,6 +1096,68 @@ impl MoveGen {
 
         false
     }
+
+    // TODO: small optimization in separately handling castling moves
+    pub fn legal_moves(&self, board: &board::Board) -> Vec<Move> {
+        let mut l_moves = Vec::new();
+        let pl_moves = self.pseudo_legal_moves(board);
+
+        for pl_move in pl_moves.into_iter() {
+            if self.exposed_threats(board.own_king, &pl_move, &board) == 0 {
+                l_moves.push(pl_move);
+            }
+        }
+
+        l_moves
+    }
+}
+
+// Tally all legal moves up to depth
+pub fn perft(depth: usize) -> u64 {
+    let mut nodes = 0;
+    let mut board = board::Board::new();
+    let move_gen = MoveGen::new();
+
+    // (move, depth)
+    let mut move_stack: Vec<(Move, usize)> = Vec::new();
+    // (move, undo)
+    let mut undo_stack: Vec<(Move, board::UndoInfo)> = Vec::new();
+
+
+    let moves = move_gen.legal_moves(&board);
+    println!("{}", moves.len());
+    println!("{:#?}", &moves);
+    move_stack.extend(moves.into_iter().zip(iter::repeat(1)));
+
+
+
+    while !move_stack.is_empty() {
+        print!("{}, ", undo_stack.len());
+
+        let (m, d) = move_stack.pop().unwrap();
+
+        // pop positions until we're behind the next move
+        while d <= undo_stack.len() {
+            let (mp, up) = undo_stack.pop().unwrap();
+            board.unmake_move(&mp, &up);
+        }
+
+        let u = board.make_move(&m);
+        undo_stack.push((m, u));
+
+        // only count leaf nodes
+        if d == depth {
+            nodes += 1;
+        }
+
+        if d < depth {
+            let moves = move_gen.legal_moves(&board);
+            move_stack.extend(moves.into_iter().zip(iter::repeat(d + 1)));
+        }
+
+    }
+
+    nodes
 }
 
 /// Fill rank at rank_idx
@@ -1630,7 +1694,7 @@ mod tests {
                 board::Piece::King,
             ] {
                 for capture_side in [-1, 1] {
-                    let mut b = pawns(vec![board::square_index(6, file_idx)], Vec::new());
+                    let b = pawns(vec![board::square_index(6, file_idx)], Vec::new());
                     let b = set_piece(
                         b,
                         false,
