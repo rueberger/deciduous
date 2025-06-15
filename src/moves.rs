@@ -197,95 +197,104 @@ impl MoveGen {
         }
     }
 
-    // TODO: I am skeptical about the correctness of these fills
-    /// Calculates all north attacks using dumb7fill
-    ///
-    /// Args:
-    ///   sliders: bits set wherever attacking pieces are
-    ///   empty: bits set at all empty squares
-    pub fn north_attacks(&self, sliders: u64, empty: u64) -> u64 {
+    // TODO this overflows?? add test
+    fn north_west_moves(&self, sliders: u64, empty: u64) -> u64 {
+        let mut flood = sliders;
+        let mask = empty & self.clear_file[7];
+        for _ in 0..15 {
+            flood |= (flood << 7) & mask;
+        }
+        flood
+    }
+
+    fn north_west_captures(&self, sliders: u64, board: &board::Board) -> u64 {
+        let mut flood = sliders;
+        (flood << 7) & self.clear_file[7] & board.opp_pieces
+    }
+
+    fn north_moves(&self, sliders: u64, empty: u64) -> u64 {
         let mut flood = sliders;
         for _ in 0..7 {
             flood |= (flood << 8) & empty;
         }
-        flood << 8
+        flood
     }
 
-    /// Calculates all north east attacks using dumb7fill
-    ///
-    /// Args:
-    ///   sliders: bits set wherever attacking pieces are
-    ///   empty: bits set at all empty squares
-    pub fn north_east_attacks(&self, sliders: u64, empty: u64) -> u64 {
+    fn north_captures(&self, sliders: u64, board: &board::Board) -> u64 {
+        let mut flood = sliders;
+        flood << 8 & board.opp_pieces
+    }
+
+    fn north_east_moves(&self, sliders: u64, empty: u64) -> u64 {
         let mut flood = sliders;
         let mask = empty & self.clear_file[0];
         for _ in 0..15 {
             flood |= (flood << 9) & mask;
         }
-        (flood << 9) & self.clear_file[0]
+        flood
     }
 
-    /// Calculates all east attacks using dumb7fill
-    ///
-    /// Args:
-    ///   sliders: bits set wherever attacking pieces are
-    ///   empty: bits set at all empty squares
-    pub fn east_attacks(&self, sliders: u64, empty: u64) -> u64 {
+    fn north_east_captures(&self, sliders: u64, board: &board::Board) -> u64 {
+        let mut flood = sliders;
+        (flood << 9) & self.clear_file[0] & board.opp_pieces
+    }
+
+    fn east_moves(&self, sliders: u64, empty: u64) -> u64 {
         let mut flood = sliders;
         let mask = empty & self.clear_file[0];
         for _ in 0..7 {
             flood |= (flood << 1) & mask;
         }
-        (flood << 1) & self.clear_file[0]
+        flood
     }
 
-    /// Calculates all south east attacks using dumb7fill
-    ///
-    /// Args:
-    ///   sliders: bits set wherever attacking pieces are
-    ///   empty: bits set at all empty squares
-    pub fn south_east_attacks(&self, sliders: u64, empty: u64) -> u64 {
+    fn east_captures(&self, sliders: u64, board: &board::Board) -> u64 {
+        let mut flood = sliders;
+        (flood << 1) & self.clear_file[0] & board.opp_pieces
+    }
+
+    fn south_east_moves(&self, sliders: u64, empty: u64) -> u64 {
         let mut flood = sliders;
         let mask = empty & self.clear_file[0];
         for _ in 0..15 {
             flood |= (flood >> 7) & mask;
         }
-        (flood >> 7) & self.clear_file[0]
+        flood
     }
 
-    /// Calculates all south attacks using dumb7fill
-    ///
-    /// Args:
-    ///   sliders: bits set wherever attacking pieces are
-    ///   empty: bits set at all empty squares
-    pub fn south_attacks(&self, sliders: u64, empty: u64) -> u64 {
+    fn south_east_captures(&self, sliders: u64, board: &board::Board) -> u64 {
+        let mut flood = sliders;
+        (flood >> 7) & self.clear_file[0] & board.opp_pieces
+    }
+
+    pub fn south_moves(&self, sliders: u64, empty: u64) -> u64 {
         let mut flood = sliders;
         for _ in 0..7 {
             flood |= (flood >> 8) & empty;
         }
-        flood >> 8
+        flood
     }
 
-    /// Calculates all south west attacks using dumb7fill
-    ///
-    /// Args:
-    ///   sliders: bits set wherever attacking pieces are
-    ///   empty: bits set at all empty squares
-    pub fn south_west_attacks(&self, sliders: u64, empty: u64) -> u64 {
+    pub fn south_captures(&self, sliders: u64, board: &board::Board) -> u64 {
+        let mut flood = sliders;
+        flood >> 8 & board.opp_pieces
+    }
+
+    fn south_west_moves(&self, sliders: u64, empty: u64) -> u64 {
         let mut flood = sliders;
         let mask = empty & self.clear_file[7];
         for _ in 0..15 {
             flood |= (flood >> 9) & mask;
         }
-        (flood >> 9) & self.clear_file[7]
+        flood
     }
 
-    /// Calculates all west attacks using dumb7fill
-    ///
-    /// Args:
-    ///   sliders: bits set wherever attacking pieces are
-    ///   empty: bits set at all empty squares
-    pub fn west_attacks(&self, sliders: u64, empty: u64) -> u64 {
+    fn south_west_captures(&self, sliders: u64, board: &board::Board) -> u64 {
+        let mut flood = sliders;
+        (flood >> 9) & self.clear_file[7] & board.opp_pieces
+    }
+
+    fn west_moves(&self, sliders: u64, empty: u64) -> u64 {
         let mut flood = sliders;
         let mask = empty & self.clear_file[7];
         for _ in 0..7 {
@@ -294,31 +303,43 @@ impl MoveGen {
         (flood >> 1) & self.clear_file[7]
     }
 
-    /// Calculates all north west attacks using dumb7fill
-    ///
-    /// Args:
-    ///   sliders: bits set wherever attacking pieces are
-    ///   empty: bits set at all empty squares
-    pub fn north_west_attacks(&self, sliders: u64, empty: u64) -> u64 {
+    fn west_captures(&self, sliders: u64, board: &board::Board) -> u64 {
         let mut flood = sliders;
-        let mask = empty & self.clear_file[7];
-        for _ in 0..15 {
-            flood |= (flood << 7) & mask;
-        }
-        (flood << 7) & self.clear_file[7]
+        (flood >> 1) & self.clear_file[7] & board.opp_pieces
     }
 
-    // Calculates all sliding attacks with dumb fill by dispatch
-    fn sliding_attacks(&self, orientation: &Orientation, sliders: u64, empty: u64) -> u64 {
+    // TODO: rename to fill
+    // Only propagates by one step so ie north west would give some pawn captures
+    fn sliding_moves(&self, orientation: &Orientation, sliders: u64, empty: u64) -> u64 {
         match orientation {
-            Orientation::North => self.north_attacks(sliders, empty),
-            Orientation::NorthEast => self.north_east_attacks(sliders, empty),
-            Orientation::East => self.east_attacks(sliders, empty),
-            Orientation::SouthEast => self.south_east_attacks(sliders, empty),
-            Orientation::South => self.south_attacks(sliders, empty),
-            Orientation::SouthWest => self.south_west_attacks(sliders, empty),
-            Orientation::West => self.west_attacks(sliders, empty),
-            Orientation::NorthWest => self.north_west_attacks(sliders, empty),
+            Orientation::North => self.north_moves(sliders, empty),
+            Orientation::NorthEast => self.north_east_moves(sliders, empty),
+            Orientation::East => self.east_moves(sliders, empty),
+            Orientation::SouthEast => self.south_east_moves(sliders, empty),
+            Orientation::South => self.south_moves(sliders, empty),
+            Orientation::SouthWest => self.south_west_moves(sliders, empty),
+            Orientation::West => self.west_moves(sliders, empty),
+            Orientation::NorthWest => self.north_west_moves(sliders, empty),
+        }
+    }
+
+    // TODO: rename to step or somethjing like that
+    // Only propagates by one step so ie north west would give some pawn captures
+    fn sliding_captures(
+        &self,
+        orientation: &Orientation,
+        sliders: u64,
+        board: &board::Board,
+    ) -> u64 {
+        match orientation {
+            Orientation::North => self.north_captures(sliders, board),
+            Orientation::NorthEast => self.north_east_captures(sliders, board),
+            Orientation::East => self.east_captures(sliders, board),
+            Orientation::SouthEast => self.south_east_captures(sliders, board),
+            Orientation::South => self.south_captures(sliders, board),
+            Orientation::SouthWest => self.south_west_captures(sliders, board),
+            Orientation::West => self.west_captures(sliders, board),
+            Orientation::NorthWest => self.north_west_captures(sliders, board),
         }
     }
 
@@ -610,111 +631,92 @@ impl MoveGen {
     //         SLIDING MOVE GEN
     // =================================
 
-    // TODO: obvious bugs, using all sliders not enemy sliders. just rewrite
-    /// Returns all possible orthogonal moves (rooks and queens)
-    pub fn ortho_moves(&self, board: &board::Board) -> Vec<Move> {
+    fn ortho_moves(&self, board: &board::Board) -> Vec<Move> {
         let mut move_list: Vec<Move> = Vec::new();
-        let mut moves: Vec<(u8, u8)> = Vec::new();
-        let mut captures: Vec<(u8, u8)> = Vec::new();
 
-        let queens = board.queens();
+        let pieces= board.ortho_sliders & board.own_pieces;
+
+        if pieces == 0 {
+            return move_list
+        }
+
         let empty = board.empty();
+        let color = board.color();
 
-        let north = self.north_attacks(board.ortho_sliders, empty);
-        let north_captures = north & board.opp_pieces;
-        let north_moves = north & !board.opp_pieces;
-        captures.append(&mut self.parse_sliding_moves(
-            north_captures,
-            board.ortho_sliders,
-            Orientation::North,
-        ));
-        moves.append(&mut self.parse_sliding_moves(
-            north_moves,
-            board.ortho_sliders,
-            Orientation::North,
-        ));
 
-        let east = self.east_attacks(board.ortho_sliders, empty);
-        let east_captures = east & board.opp_pieces;
-        let east_moves = east & !board.opp_pieces;
-        captures.append(&mut self.parse_sliding_moves(
-            east_captures,
-            board.ortho_sliders,
-            Orientation::East,
-        ));
-        moves.append(&mut self.parse_sliding_moves(
-            east_moves,
-            board.ortho_sliders,
-            Orientation::East,
-        ));
 
-        let south = self.south_attacks(board.ortho_sliders, empty);
-        let south_captures = south & board.opp_pieces;
-        let south_moves = south & !board.opp_pieces;
-        captures.append(&mut self.parse_sliding_moves(
-            south_captures,
-            board.ortho_sliders,
-            Orientation::South,
-        ));
-        moves.append(&mut self.parse_sliding_moves(
-            south_moves,
-            board.ortho_sliders,
-            Orientation::South,
-        ));
+        for orientation in Orientation::ortho() {
+            let axis = orientation.axis();
 
-        let west = self.west_attacks(board.ortho_sliders, empty);
-        let west_captures = west & board.opp_pieces;
-        let west_moves = west & !board.opp_pieces;
-        captures.append(&mut self.parse_sliding_moves(
-            west_captures,
-            board.ortho_sliders,
-            Orientation::West,
-        ));
-        moves.append(&mut self.parse_sliding_moves(
-            west_moves,
-            board.ortho_sliders,
-            Orientation::West,
-        ));
+            let moves = self.sliding_moves(&orientation, pieces, empty);
+            let captures = self.sliding_captures(&orientation, moves, board);
 
-        for (from_idx, to_idx) in moves.iter() {
-            // TODO: faster just to use Board::identify? more elegatnt, certainly
-            if ((1 << *from_idx) & queens) != 0 {
+            let queens = board.queens() & board.own_pieces;
+            let rooks = board.rooks() & board.own_pieces;
+
+            let mut queen_mask: u64 = 0;
+            for queen_idx in serialize_board(queens) {
+                let queen_axis_idx = axis.axis_idx(queen_idx);
+                queen_mask |= axis.axis_mask(queen_axis_idx.into(), &self);
+            }
+            let rook_mask = !queen_mask;
+
+            let queen_moves = moves & queen_mask;
+            let queen_captures = captures & queen_mask;
+            let rook_moves = moves & rook_mask;
+            let rook_captures = captures & rook_mask;
+
+            for (from_idx, to_idx) in self
+                .parse_sliding_moves(queen_moves, queens, orientation)
+                .iter()
+            {
                 move_list.push(Move {
                     from: *from_idx,
                     to: *to_idx,
                     piece: board::Piece::Queen,
-                    color: board.color(),
-                    capture: None,
-                    category: MoveCategory::Normal,
-                })
-            } else {
-                move_list.push(Move {
-                    from: *from_idx,
-                    to: *to_idx,
-                    piece: board::Piece::Rook,
-                    color: board.color(),
+                    color,
                     capture: None,
                     category: MoveCategory::Normal,
                 })
             }
-        }
 
-        for (from_idx, to_idx) in captures.iter() {
-            if ((1 << *from_idx) & queens) != 0 {
+            for (from_idx, to_idx) in self
+                .parse_sliding_captures(queen_captures, queens, orientation)
+                .iter()
+            {
                 move_list.push(Move {
                     from: *from_idx,
                     to: *to_idx,
                     piece: board::Piece::Queen,
-                    color: board.color(),
+                    color,
                     capture: Some(board.identify(*to_idx)),
                     category: MoveCategory::Normal,
                 })
-            } else {
+            }
+
+            for (from_idx, to_idx) in self
+                .parse_sliding_moves(rook_moves, rooks, orientation)
+                .iter()
+            {
                 move_list.push(Move {
                     from: *from_idx,
                     to: *to_idx,
                     piece: board::Piece::Rook,
-                    color: board.color(),
+                    color,
+                    capture: None,
+                    category: MoveCategory::Normal,
+                })
+            }
+
+            for (from_idx, to_idx) in self
+                .parse_sliding_captures(rook_captures, rooks, orientation)
+                .iter()
+            {
+                move_list.push(Move {
+                    from: *from_idx,
+                    to: *to_idx,
+                    piece: board::Piece::Rook,
+                    color,
                     capture: Some(board.identify(*to_idx)),
                     category: MoveCategory::Normal,
                 })
@@ -724,109 +726,90 @@ impl MoveGen {
         move_list
     }
 
-    /// Returns all possible diagonal moves (bishops and queens)
-    pub fn diag_moves(&self, board: &board::Board) -> Vec<Move> {
+    fn diag_moves(&self, board: &board::Board) -> Vec<Move> {
         let mut move_list: Vec<Move> = Vec::new();
-        let mut moves: Vec<(u8, u8)> = Vec::new();
-        let mut captures: Vec<(u8, u8)> = Vec::new();
 
-        let queens = board.queens();
+        let pieces= board.diag_sliders & board.own_pieces;
+
+        if pieces == 0 {
+            return move_list
+        }
+
         let empty = board.empty();
+        let color = board.color();
 
-        let north_east = self.north_east_attacks(board.ortho_sliders, empty);
-        let north_east_captures = north_east & board.opp_pieces;
-        let north_east_moves = north_east & !board.opp_pieces;
-        captures.append(&mut self.parse_sliding_moves(
-            north_east_captures,
-            board.ortho_sliders,
-            Orientation::NorthEast,
-        ));
-        moves.append(&mut self.parse_sliding_moves(
-            north_east_moves,
-            board.ortho_sliders,
-            Orientation::NorthEast,
-        ));
+        for orientation in Orientation::diag() {
+            let axis = orientation.axis();
 
-        let south_east = self.south_east_attacks(board.ortho_sliders, empty);
-        let south_east_captures = south_east & board.opp_pieces;
-        let south_east_moves = south_east & !board.opp_pieces;
-        captures.append(&mut self.parse_sliding_moves(
-            south_east_captures,
-            board.ortho_sliders,
-            Orientation::SouthEast,
-        ));
-        moves.append(&mut self.parse_sliding_moves(
-            south_east_moves,
-            board.ortho_sliders,
-            Orientation::SouthEast,
-        ));
+            let moves = self.sliding_moves(&orientation, pieces, empty);
+            let captures = self.sliding_captures(&orientation, moves, board);
 
-        let south_west = self.south_west_attacks(board.ortho_sliders, empty);
-        let south_west_captures = south_west & board.opp_pieces;
-        let south_west_moves = south_west & !board.opp_pieces;
-        captures.append(&mut self.parse_sliding_moves(
-            south_west_captures,
-            board.ortho_sliders,
-            Orientation::SouthWest,
-        ));
-        moves.append(&mut self.parse_sliding_moves(
-            south_west_moves,
-            board.ortho_sliders,
-            Orientation::SouthWest,
-        ));
+            let queens = board.queens() & board.own_pieces;
+            let bishops = board.bishops() & board.own_pieces;
 
-        let north_west = self.north_west_attacks(board.ortho_sliders, empty);
-        let north_west_captures = north_west & board.opp_pieces;
-        let north_west_moves = north_west & !board.opp_pieces;
-        captures.append(&mut self.parse_sliding_moves(
-            north_west_captures,
-            board.ortho_sliders,
-            Orientation::NorthWest,
-        ));
-        moves.append(&mut self.parse_sliding_moves(
-            north_west_moves,
-            board.ortho_sliders,
-            Orientation::NorthWest,
-        ));
+            let mut queen_mask: u64 = 0;
+            for queen_idx in serialize_board(queens) {
+                let queen_axis_idx = axis.axis_idx(queen_idx);
+                queen_mask |= axis.axis_mask(queen_axis_idx.into(), &self);
+            }
+            let bishop_mask = !queen_mask;
 
-        for (from_idx, to_idx) in moves.iter() {
-            if ((1 << *from_idx) & queens) != 0 {
+            let queen_moves = moves & queen_mask;
+            let queen_captures = captures & queen_mask;
+            let bishop_moves = moves & bishop_mask;
+            let bishop_captures = captures & bishop_mask;
+
+            for (from_idx, to_idx) in self
+                .parse_sliding_moves(queen_moves, queens, orientation)
+                .iter()
+            {
                 move_list.push(Move {
                     from: *from_idx,
                     to: *to_idx,
                     piece: board::Piece::Queen,
-                    color: board.color(),
-                    capture: None,
-                    category: MoveCategory::Normal,
-                })
-            } else {
-                move_list.push(Move {
-                    from: *from_idx,
-                    to: *to_idx,
-                    piece: board::Piece::Bishop,
-                    color: board.color(),
+                    color,
                     capture: None,
                     category: MoveCategory::Normal,
                 })
             }
-        }
 
-        for (from_idx, to_idx) in captures.iter() {
-            if ((1 << *from_idx) & queens) != 0 {
+            for (from_idx, to_idx) in self
+                .parse_sliding_captures(queen_captures, queens, orientation)
+                .iter()
+            {
                 move_list.push(Move {
                     from: *from_idx,
                     to: *to_idx,
                     piece: board::Piece::Queen,
-                    color: board.color(),
+                    color,
                     capture: Some(board.identify(*to_idx)),
                     category: MoveCategory::Normal,
                 })
-            } else {
+            }
+
+            for (from_idx, to_idx) in self
+                .parse_sliding_moves(bishop_moves, bishops, orientation)
+                .iter()
+            {
                 move_list.push(Move {
                     from: *from_idx,
                     to: *to_idx,
                     piece: board::Piece::Bishop,
-                    color: board.color(),
+                    color,
+                    capture: None,
+                    category: MoveCategory::Normal,
+                })
+            }
+
+            for (from_idx, to_idx) in self
+                .parse_sliding_captures(bishop_captures, bishops, orientation)
+                .iter()
+            {
+                move_list.push(Move {
+                    from: *from_idx,
+                    to: *to_idx,
+                    piece: board::Piece::Bishop,
+                    color,
                     capture: Some(board.identify(*to_idx)),
                     category: MoveCategory::Normal,
                 })
@@ -836,74 +819,52 @@ impl MoveGen {
         move_list
     }
 
-    // TODO: assumption that the max number of colinear pieces is 3 is a bug, promotions
-    // TODO: test
-    // TODO: worth it to check for colinearity to call a simpler routine?
-    // TODO: profile how much all these conditionals cost us
-    /// Parse a bitboard of sliding moves for a single orientation into a vector of (from, to) coordinates
-    /// Handles colinear pieces
+    // TODO: I have a hard time believing that even an optimized version of this
+    // will be faster than simply generating sliding moves independently for
+    // each piece
+    // Assumes pieces is not empty
     fn parse_sliding_moves(
         &self,
         moves: u64,
         pieces: u64,
         orientation: Orientation,
     ) -> Vec<(u8, u8)> {
-        let mut move_list = Vec::new();
+        let axis = orientation.axis();
 
-        // 1. sort pieces
-        // this is just a really unnecessarily complicated sort
-        let piece_idxs = serialize_board(pieces);
-        let mut axis_wise: [Option<u8>; 15] = [None; 15];
+        let mut piece_axis_idxs: Vec<u8> = Vec::new();
 
-        for piece_idx in piece_idxs.iter() {
-            match orientation.axis() {
-                Axis::Rank => {
-                    axis_wise[board::file_index(*piece_idx) as usize] = Some(*piece_idx);
-                }
-                Axis::File => {
-                    axis_wise[board::rank_index(*piece_idx) as usize] = Some(*piece_idx);
-                }
-                Axis::Diagonal => {
-                    axis_wise[board::anti_diag_index(*piece_idx) as usize] = Some(*piece_idx);
-                }
-                Axis::AntiDiagonal => {
-                    axis_wise[board::diag_index(*piece_idx) as usize] = Some(*piece_idx);
-                }
-            }
+        for sq in serialize_board(pieces) {
+            piece_axis_idxs.push(axis.axis_idx(sq));
         }
 
-        // indices of pieces along the current axis
+        piece_axis_idxs.sort_unstable();
 
-        let mut sorted_piece_idxs = utils::bad_argsort(axis_wise.to_vec());
-        let mut masks = Vec::new();
 
-        // some directions require sorted_piece_idxs to be reversed
-        match orientation {
-            Orientation::North => sorted_piece_idxs.reverse(),
-            Orientation::East => sorted_piece_idxs.reverse(),
-            Orientation::NorthEast => sorted_piece_idxs.reverse(),
-            Orientation::NorthWest => sorted_piece_idxs.reverse(),
-            _ => (),
+        // TODO: this is a ref
+        let last = piece_axis_idxs.last().unwrap();
+        while !piece_axis_idxs.is_empty() {
+            let curr = piece_axis_idxs.pop().unwrap();
+
         }
 
-        // 2. generate up to 3 masks
-        // the first mask requires special handling
-        masks.push(orientation.ray(&self, sorted_piece_idxs[0] as usize));
-        for idx in 1..sorted_piece_idxs.len() {
-            let forward_mask = orientation.ray(&self, sorted_piece_idxs[idx] as usize);
-            let backward_mask = orientation
-                .antipode()
-                .ray(&self, sorted_piece_idxs[idx - 1] as usize);
-            masks.push(forward_mask & backward_mask)
-        }
 
-        // 3. Pass off to directional move-list generator
-        for idx in 0..sorted_piece_idxs.len() {
-            let piece_idx = sorted_piece_idxs[idx];
-            let masked = masks[idx] & moves;
-            move_list.append(&mut self.parse_single_piece_moves(masked, piece_idx))
-        }
-        move_list
+        // check colinear
+
+        // sort sq idxs?
+
+
+
+        // loop through along diagonal axis
+
+
+    }
+
+    fn parse_sliding_captures(
+        &self,
+        moves: u64,
+        pieces: u64,
+        orientation: Orientation,
+    ) -> Vec<(u8, u8)> {
     }
 
     /// Parse a bitboard of moves for a single piece
@@ -1073,12 +1034,13 @@ impl MoveGen {
         }
     }
 
+    // TODO: fails to identify threats from pawns
     // Identifies threats sq is exposed to in dir orientation
     fn sliding_threats(&self, sq: u8, orientation: &Orientation, board: &board::Board) -> u64 {
         // enemy sliders are excluded from mask so occluded enemy sliders will be correctly counted
         let enemy_sliders = board.sliders(&orientation) & board.opp_pieces;
-        let mask = board.empty() | enemy_sliders;
-        let exposed_bb = self.sliding_attacks(&orientation, 1 << sq, mask);
+        let mask = board.empty() ^ enemy_sliders;
+        let exposed_bb = self.sliding_moves(&orientation, 1 << sq, mask);
         exposed_bb & enemy_sliders
     }
 
@@ -1100,6 +1062,7 @@ impl MoveGen {
     // TODO: small optimization in separately handling castling moves
     pub fn legal_moves(&self, board: &board::Board) -> Vec<Move> {
         let mut l_moves = Vec::new();
+
         let pl_moves = self.pseudo_legal_moves(board);
 
         for pl_move in pl_moves.into_iter() {
@@ -1123,13 +1086,10 @@ pub fn perft(depth: usize) -> u64 {
     // (move, undo)
     let mut undo_stack: Vec<(Move, board::UndoInfo)> = Vec::new();
 
-
     let moves = move_gen.legal_moves(&board);
     println!("{}", moves.len());
     println!("{:#?}", &moves);
     move_stack.extend(moves.into_iter().zip(iter::repeat(1)));
-
-
 
     while !move_stack.is_empty() {
         print!("{}, ", undo_stack.len());
@@ -1154,7 +1114,6 @@ pub fn perft(depth: usize) -> u64 {
             let moves = move_gen.legal_moves(&board);
             move_stack.extend(moves.into_iter().zip(iter::repeat(d + 1)));
         }
-
     }
 
     nodes
@@ -1260,6 +1219,28 @@ pub enum Axis {
     File,
     Diagonal,
     AntiDiagonal,
+}
+
+impl Axis {
+    // Dispatches onto appropriate axis index method
+    fn axis_idx(&self, sq: u8) -> u8 {
+        match self {
+            Axis::Rank => board::rank_index(sq),
+            Axis::File => board::file_index(sq),
+            Axis::Diagonal => board::diag_index(sq),
+            Axis::AntiDiagonal => board::anti_diag_index(sq),
+        }
+    }
+
+    // Dispatches onto appropriate axis mask
+    fn axis_mask(&self, axis_idx: usize, move_gen: &MoveGen) -> u64 {
+        match self {
+            Axis::Rank => move_gen.mask_rank[axis_idx],
+            Axis::File => move_gen.mask_file[axis_idx],
+            Axis::Diagonal => move_gen.mask_diag[axis_idx],
+            Axis::AntiDiagonal => move_gen.mask_anti_diag[axis_idx],
+        }
+    }
 }
 
 #[derive(Copy, Clone)]
