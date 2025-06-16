@@ -143,7 +143,7 @@ impl Board {
     }
 
     pub fn empty(&self) -> u64 {
-        !(self.own_pieces & self.opp_pieces)
+        !(self.own_pieces | self.opp_pieces)
     }
 
     pub fn rooks(&self) -> u64 {
