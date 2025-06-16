@@ -830,6 +830,10 @@ impl MoveGen {
     ) -> Vec<(u8, u8)> {
         let mut move_list: Vec<(u8, u8)> = Vec::new();
 
+        if moves == 0 {
+            return move_list
+        }
+
         let axis = orientation.axis();
         let ortho_axis = axis.orthogonal_axis();
 
@@ -838,18 +842,14 @@ impl MoveGen {
             piece_axis_idxs.push(axis.axis_idx(sq));
         }
 
-        let (colinear_axes, singleton_axes) = utils::partition_unique(piece_axis_idxs);
+        let (singleton_axes, colinear_axes) = utils::partition_unique(piece_axis_idxs);
 
         // special handling for colinear pieces, must mask moves
         for axis_idx in colinear_axes.into_iter() {
             let mut piece_idxs = serialize_board(pieces & axis.mask(axis_idx.into(), self));
-            let mut along_axis_idxs: Vec<u8> = Vec::new();
-            for sq in piece_idxs.iter() {
-                along_axis_idxs.push(ortho_axis.axis_idx(*sq));
-            }
 
             // sort by position along axis
-            piece_idxs.sort_by_key(|&i| along_axis_idxs[i as usize]);
+            piece_idxs.sort_by_cached_key(|&i| ortho_axis.axis_idx(i));
 
             // now some tricky orientation dependent stuff.
             // possibly reverse list to ensure mask will always be non-empty
@@ -876,7 +876,7 @@ impl MoveGen {
             }
 
             // handle last piece
-            let last_piece = piece_idxs[piece_idxs.len()];
+            let last_piece = piece_idxs[piece_idxs.len() - 1];
             move_list.append(&mut self.parse_single_piece_moves(
                 moves & orientation.ray(&self, last_piece as usize),
                 last_piece,
