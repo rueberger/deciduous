@@ -267,8 +267,6 @@ impl Board {
                 _ => (),
             }
         }
-
-        self.color_flip();
     }
 
     /// Make move. Mutates state of self.
@@ -331,6 +329,8 @@ impl Board {
             }
         }
 
+        self.color_flip();
+
         undo
     }
 
@@ -338,6 +338,7 @@ impl Board {
     /// unmake move. Mutates state of self.
     /// Does not check move legality
     pub fn unmake_move(&mut self, m: &moves::Move, undo: &UndoInfo) {
+        self.color_flip();
         self.move_involution(m);
 
         match m.category {
