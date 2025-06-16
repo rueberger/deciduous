@@ -2,6 +2,7 @@
 use std::iter;
 
 use crate::board;
+use crate::render_board;
 use crate::utils;
 
 static PROMOTION_OPTIONS: [board::Piece; 4] = [
@@ -229,7 +230,7 @@ impl MoveGen {
         let mask = empty & self.clear_file[0];
         let mut flood = (sliders << 9) & mask;
         for _ in 0..14 {
-            flood |= (sliders << 9) & mask;
+            flood |= (flood << 9) & mask;
         }
         flood
     }
@@ -243,8 +244,9 @@ impl MoveGen {
         let mask = empty & self.clear_file[0];
         let mut flood = (sliders << 1) & mask;
         for _ in 0..6 {
-            flood |= (sliders << 1) & mask;
+            flood |= (flood << 1) & mask;
         }
+
         flood
     }
 
@@ -300,7 +302,7 @@ impl MoveGen {
         for _ in 0..6 {
             flood |= (flood >> 1) & mask;
         }
-        (flood >> 1) & self.clear_file[7]
+        flood
     }
 
     fn west_captures(&self, sliders: u64, board: &board::Board) -> u64 {
@@ -467,7 +469,7 @@ impl MoveGen {
             }
         }
 
-        let right_ep_move = (own_pawns << 25) & self.clear_file[0];
+        let right_ep_move = (own_pawns << 25) & self.clear_file[0] & self.mask_rank[7];
         if right_ep_move & opp_pawns != 0 {
             let (from_idx, to_idx) = self.parse_ep_capture_move(right_ep_move, Orientation::East);
             move_list.push(Move {
@@ -480,7 +482,7 @@ impl MoveGen {
             })
         }
 
-        let left_ep_move = (own_pawns << 23) & self.clear_file[7];
+        let left_ep_move = (own_pawns << 23) & self.clear_file[7] & self.mask_rank[7];
         if left_ep_move & opp_pawns != 0 {
             let (from_idx, to_idx) = self.parse_ep_capture_move(left_ep_move, Orientation::West);
             move_list.push(Move {
@@ -1113,13 +1115,9 @@ pub fn perft(depth: usize) -> u64 {
     let mut undo_stack: Vec<(Move, board::UndoInfo)> = Vec::new();
 
     let moves = move_gen.legal_moves(&board);
-    println!("{}", moves.len());
-    println!("{:#?}", &moves);
     move_stack.extend(moves.into_iter().zip(iter::repeat(1)));
 
     while !move_stack.is_empty() {
-        print!("{}, ", undo_stack.len());
-
         let (m, d) = move_stack.pop().unwrap();
 
         // pop positions until we're behind the next move
@@ -1739,6 +1737,50 @@ mod tests {
                 let moves = move_gen.pawn_captures(&b);
                 assert_eq!(moves.len(), 0);
             }
+        }
+    }
+
+    #[test]
+    fn sliding_ortho_single() {
+        let move_gen = MoveGen::new();
+
+        for sq in 0..63 {
+            let b = set_piece(empty_board(), true, sq as u8, board::Piece::Queen);
+
+            let moves = move_gen.ortho_moves(&b);
+
+            let expected = pop_count(
+                move_gen.north[sq] | move_gen.east[sq] | move_gen.south[sq] | move_gen.west[sq],
+            );
+            let rank_idx = board::rank_index(sq as u8);
+            let file_idx = board::file_index(sq as u8);
+            assert_eq!(
+                moves.len(),
+                expected as usize,
+                "rank_idx: {rank_idx}, file_idx: {file_idx}, moves: {moves:#?}"
+            )
+        }
+    }
+
+    #[test]
+    fn sliding_diag_single() {
+        let move_gen = MoveGen::new();
+
+        for sq in 0..63 {
+            let b = set_piece(empty_board(), true, sq as u8, board::Piece::Queen);
+
+            let moves = move_gen.diag_moves(&b);
+
+            let expected = pop_count(
+                move_gen.north_east[sq] | move_gen.south_east[sq] | move_gen.south_west[sq] | move_gen.north_west[sq],
+            );
+            let rank_idx = board::rank_index(sq as u8);
+            let file_idx = board::file_index(sq as u8);
+            assert_eq!(
+                moves.len(),
+                expected as usize,
+                "rank_idx: {rank_idx}, file_idx: {file_idx}, moves: {moves:#?}"
+            )
         }
     }
 }
