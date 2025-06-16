@@ -199,9 +199,9 @@ impl MoveGen {
 
     // TODO this overflows?? add test
     fn north_west_moves(&self, sliders: u64, empty: u64) -> u64 {
-        let mut flood = sliders;
         let mask = empty & self.clear_file[7];
-        for _ in 0..15 {
+        let mut flood = (sliders << 7) & mask;
+        for _ in 0..14 {
             flood |= (flood << 7) & mask;
         }
         flood
@@ -213,8 +213,8 @@ impl MoveGen {
     }
 
     fn north_moves(&self, sliders: u64, empty: u64) -> u64 {
-        let mut flood = sliders;
-        for _ in 0..7 {
+        let mut flood = (sliders << 8) & empty;
+        for _ in 0..6 {
             flood |= (flood << 8) & empty;
         }
         flood
@@ -226,10 +226,10 @@ impl MoveGen {
     }
 
     fn north_east_moves(&self, sliders: u64, empty: u64) -> u64 {
-        let mut flood = sliders;
         let mask = empty & self.clear_file[0];
-        for _ in 0..15 {
-            flood |= (flood << 9) & mask;
+        let mut flood = (sliders << 9) & mask;
+        for _ in 0..14 {
+            flood |= (sliders << 9) & mask;
         }
         flood
     }
@@ -240,10 +240,10 @@ impl MoveGen {
     }
 
     fn east_moves(&self, sliders: u64, empty: u64) -> u64 {
-        let mut flood = sliders;
         let mask = empty & self.clear_file[0];
-        for _ in 0..7 {
-            flood |= (flood << 1) & mask;
+        let mut flood = (sliders << 1) & mask;
+        for _ in 0..6 {
+            flood |= (sliders << 1) & mask;
         }
         flood
     }
@@ -254,9 +254,9 @@ impl MoveGen {
     }
 
     fn south_east_moves(&self, sliders: u64, empty: u64) -> u64 {
-        let mut flood = sliders;
         let mask = empty & self.clear_file[0];
-        for _ in 0..15 {
+        let mut flood = (sliders >> 7) & mask;
+        for _ in 0..14 {
             flood |= (flood >> 7) & mask;
         }
         flood
@@ -268,8 +268,8 @@ impl MoveGen {
     }
 
     pub fn south_moves(&self, sliders: u64, empty: u64) -> u64 {
-        let mut flood = sliders;
-        for _ in 0..7 {
+        let mut flood = (sliders >> 8) & empty;
+        for _ in 0..6 {
             flood |= (flood >> 8) & empty;
         }
         flood
@@ -281,9 +281,9 @@ impl MoveGen {
     }
 
     fn south_west_moves(&self, sliders: u64, empty: u64) -> u64 {
-        let mut flood = sliders;
         let mask = empty & self.clear_file[7];
-        for _ in 0..15 {
+        let mut flood = (sliders >> 9) & mask;
+        for _ in 0..14 {
             flood |= (flood >> 9) & mask;
         }
         flood
@@ -295,9 +295,9 @@ impl MoveGen {
     }
 
     fn west_moves(&self, sliders: u64, empty: u64) -> u64 {
-        let mut flood = sliders;
         let mask = empty & self.clear_file[7];
-        for _ in 0..7 {
+        let mut flood = (sliders >> 1) & mask;
+        for _ in 0..6 {
             flood |= (flood >> 1) & mask;
         }
         (flood >> 1) & self.clear_file[7]
@@ -310,7 +310,7 @@ impl MoveGen {
 
     // TODO: rename to fill
     // Only propagates by one step so ie north west would give some pawn captures
-    fn sliding_moves(&self, orientation: &Orientation, sliders: u64, empty: u64) -> u64 {
+    pub fn sliding_moves(&self, orientation: &Orientation, sliders: u64, empty: u64) -> u64 {
         match orientation {
             Orientation::North => self.north_moves(sliders, empty),
             Orientation::NorthEast => self.north_east_moves(sliders, empty),
@@ -831,7 +831,7 @@ impl MoveGen {
         let mut move_list: Vec<(u8, u8)> = Vec::new();
 
         if moves == 0 {
-            return move_list
+            return move_list;
         }
 
         let axis = orientation.axis();
