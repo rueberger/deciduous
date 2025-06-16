@@ -634,16 +634,14 @@ impl MoveGen {
     fn ortho_moves(&self, board: &board::Board) -> Vec<Move> {
         let mut move_list: Vec<Move> = Vec::new();
 
-        let pieces= board.ortho_sliders & board.own_pieces;
+        let pieces = board.ortho_sliders & board.own_pieces;
 
         if pieces == 0 {
-            return move_list
+            return move_list;
         }
 
         let empty = board.empty();
         let color = board.color();
-
-
 
         for orientation in Orientation::ortho() {
             let axis = orientation.axis();
@@ -681,7 +679,7 @@ impl MoveGen {
             }
 
             for (from_idx, to_idx) in self
-                .parse_sliding_captures(queen_captures, queens, orientation)
+                .parse_sliding_moves(queen_captures, queens, orientation)
                 .iter()
             {
                 move_list.push(Move {
@@ -709,7 +707,7 @@ impl MoveGen {
             }
 
             for (from_idx, to_idx) in self
-                .parse_sliding_captures(rook_captures, rooks, orientation)
+                .parse_sliding_moves(rook_captures, rooks, orientation)
                 .iter()
             {
                 move_list.push(Move {
@@ -729,10 +727,10 @@ impl MoveGen {
     fn diag_moves(&self, board: &board::Board) -> Vec<Move> {
         let mut move_list: Vec<Move> = Vec::new();
 
-        let pieces= board.diag_sliders & board.own_pieces;
+        let pieces = board.diag_sliders & board.own_pieces;
 
         if pieces == 0 {
-            return move_list
+            return move_list;
         }
 
         let empty = board.empty();
@@ -774,7 +772,7 @@ impl MoveGen {
             }
 
             for (from_idx, to_idx) in self
-                .parse_sliding_captures(queen_captures, queens, orientation)
+                .parse_sliding_moves(queen_captures, queens, orientation)
                 .iter()
             {
                 move_list.push(Move {
@@ -802,7 +800,7 @@ impl MoveGen {
             }
 
             for (from_idx, to_idx) in self
-                .parse_sliding_captures(bishop_captures, bishops, orientation)
+                .parse_sliding_moves(bishop_captures, bishops, orientation)
                 .iter()
             {
                 move_list.push(Move {
@@ -820,8 +818,9 @@ impl MoveGen {
     }
 
     // TODO: I have a hard time believing that even an optimized version of this
-    // will be faster than simply generating sliding moves independently for
-    // each piece
+    // will be faster than simply generating sliding moves independently for each piece.
+    // I also haven't really optimized this at all
+    //
     // Assumes pieces is not empty
     fn parse_sliding_moves(
         &self,
@@ -829,42 +828,69 @@ impl MoveGen {
         pieces: u64,
         orientation: Orientation,
     ) -> Vec<(u8, u8)> {
+        let mut move_list: Vec<(u8, u8)> = Vec::new();
+
         let axis = orientation.axis();
+        let ortho_axis = axis.orthogonal_axis();
 
         let mut piece_axis_idxs: Vec<u8> = Vec::new();
-
         for sq in serialize_board(pieces) {
             piece_axis_idxs.push(axis.axis_idx(sq));
         }
 
-        piece_axis_idxs.sort_unstable();
+        let (colinear_axes, singleton_axes) = utils::partition_unique(piece_axis_idxs);
 
+        // special handling for colinear pieces, must mask moves
+        for axis_idx in colinear_axes.into_iter() {
+            let mut piece_idxs = serialize_board(pieces & axis.axis_mask(axis_idx.into(), self));
+            let mut along_axis_idxs: Vec<u8> = Vec::new();
+            for sq in piece_idxs.iter() {
+                along_axis_idxs.push(ortho_axis.axis_idx(*sq));
+            }
 
-        // TODO: this is a ref
-        let last = piece_axis_idxs.last().unwrap();
-        while !piece_axis_idxs.is_empty() {
-            let curr = piece_axis_idxs.pop().unwrap();
+            // sort by position along axis
+            piece_idxs.sort_by_key(|&i| along_axis_idxs[i as usize]);
 
+            // now some tricky orientation dependent stuff.
+            // possibly reverse list to ensure mask will always be non-empty
+            // sign of shift corresponds to direction of increasing axis idx
+
+            if orientation.shift() < 0 {
+                piece_idxs.reverse();
+            }
+
+            for (piece_1, piece_2) in iter::zip(
+                piece_idxs[..(piece_idxs.len() - 1)].iter(),
+                piece_idxs[1..].iter(),
+            ) {
+                let piece_mask = orientation.ray(&self, *piece_1 as usize)
+                    & orientation.antipode().ray(&self, *piece_2 as usize);
+
+                // TODO: remove once tested
+                let neighboring = (ortho_axis.axis_idx(*piece_1) as i8)
+                    - (ortho_axis.axis_idx(*piece_2) as i8).abs()
+                    == 1;
+                debug_assert!(piece_mask != 0 || neighboring);
+
+                move_list.append(&mut self.parse_single_piece_moves(moves & piece_mask, *piece_1));
+            }
+
+            // handle last piece
+            let last_piece = piece_idxs[piece_idxs.len()];
+            move_list.append(&mut self.parse_single_piece_moves(
+                moves & orientation.ray(&self, last_piece as usize),
+                last_piece,
+            ));
         }
 
+        for axis_idx in singleton_axes {
+            let axis_mask = axis.axis_mask(axis_idx.into(), self);
+            let piece_idx = serialize_board(pieces & axis_mask).pop().unwrap();
 
-        // check colinear
+            move_list.append(&mut self.parse_single_piece_moves(moves & axis_mask, piece_idx));
+        }
 
-        // sort sq idxs?
-
-
-
-        // loop through along diagonal axis
-
-
-    }
-
-    fn parse_sliding_captures(
-        &self,
-        moves: u64,
-        pieces: u64,
-        orientation: Orientation,
-    ) -> Vec<(u8, u8)> {
+        move_list
     }
 
     /// Parse a bitboard of moves for a single piece
@@ -1232,6 +1258,7 @@ impl Axis {
         }
     }
 
+    // TODO: rename to mask
     // Dispatches onto appropriate axis mask
     fn axis_mask(&self, axis_idx: usize, move_gen: &MoveGen) -> u64 {
         match self {
@@ -1239,6 +1266,15 @@ impl Axis {
             Axis::File => move_gen.mask_file[axis_idx],
             Axis::Diagonal => move_gen.mask_diag[axis_idx],
             Axis::AntiDiagonal => move_gen.mask_anti_diag[axis_idx],
+        }
+    }
+
+    fn orthogonal_axis(&self) -> Self {
+        match self {
+            Axis::Rank => Axis::File,
+            Axis::File => Axis::Rank,
+            Axis::Diagonal => Axis::AntiDiagonal,
+            Axis::AntiDiagonal => Axis::Diagonal,
         }
     }
 }
