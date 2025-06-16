@@ -655,7 +655,7 @@ impl MoveGen {
             let mut queen_mask: u64 = 0;
             for queen_idx in serialize_board(queens) {
                 let queen_axis_idx = axis.axis_idx(queen_idx);
-                queen_mask |= axis.axis_mask(queen_axis_idx.into(), &self);
+                queen_mask |= axis.mask(queen_axis_idx.into(), &self);
             }
             let rook_mask = !queen_mask;
 
@@ -748,7 +748,7 @@ impl MoveGen {
             let mut queen_mask: u64 = 0;
             for queen_idx in serialize_board(queens) {
                 let queen_axis_idx = axis.axis_idx(queen_idx);
-                queen_mask |= axis.axis_mask(queen_axis_idx.into(), &self);
+                queen_mask |= axis.mask(queen_axis_idx.into(), &self);
             }
             let bishop_mask = !queen_mask;
 
@@ -842,7 +842,7 @@ impl MoveGen {
 
         // special handling for colinear pieces, must mask moves
         for axis_idx in colinear_axes.into_iter() {
-            let mut piece_idxs = serialize_board(pieces & axis.axis_mask(axis_idx.into(), self));
+            let mut piece_idxs = serialize_board(pieces & axis.mask(axis_idx.into(), self));
             let mut along_axis_idxs: Vec<u8> = Vec::new();
             for sq in piece_idxs.iter() {
                 along_axis_idxs.push(ortho_axis.axis_idx(*sq));
@@ -884,7 +884,7 @@ impl MoveGen {
         }
 
         for axis_idx in singleton_axes {
-            let axis_mask = axis.axis_mask(axis_idx.into(), self);
+            let axis_mask = axis.mask(axis_idx.into(), self);
             let piece_idx = serialize_board(pieces & axis_mask).pop().unwrap();
 
             move_list.append(&mut self.parse_single_piece_moves(moves & axis_mask, piece_idx));
@@ -1260,7 +1260,7 @@ impl Axis {
 
     // TODO: rename to mask
     // Dispatches onto appropriate axis mask
-    fn axis_mask(&self, axis_idx: usize, move_gen: &MoveGen) -> u64 {
+    fn mask(&self, axis_idx: usize, move_gen: &MoveGen) -> u64 {
         match self {
             Axis::Rank => move_gen.mask_rank[axis_idx],
             Axis::File => move_gen.mask_file[axis_idx],
