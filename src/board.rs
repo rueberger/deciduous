@@ -44,8 +44,22 @@ pub static UNIVERSAL_SET: u64 = 18446744073709551615;
 /// 1: A B C D E F G H | 0  1  2  3  4  5  6  7
 /// 2: A B C D E F G H | 8  9  10 11 12 13 14 15
 /// 3: A B C D E F G H | 16 17 18 19 20 21 22 23
-/// ...
+//  ...                | 24 25 26 27 28 29 30 31
+//                     | 32 33 34 35 36 37 38 39
+//                     | 40 41 42 43 44 45 46 47
+//                     | 48 49 50 51 52 53 54 55
 /// 8: A B C D E F G H | 56 57 58 59 60 61 62 63
+//
+// =============================================
+//
+/// 8: A B C D E F G H | 56 57 58 59 60 61 62 63
+//                     | 48 49 50 51 52 53 54 55
+//                     | 40 41 42 43 44 45 46 47
+//                     | 32 33 34 35 36 37 38 39
+//  ...                | 24 25 26 27 28 29 30 31
+/// 3: A B C D E F G H | 16 17 18 19 20 21 22 23
+/// 2: A B C D E F G H | 8  9  10 11 12 13 14 15
+/// 1: A B C D E F G H | 0  1  2  3  4  5  6  7
 pub fn square_index(rank_idx: u8, file_idx: u8) -> u8 {
     assert!((rank_idx < 8) & (file_idx < 8));
 
@@ -438,7 +452,7 @@ impl CastlingRights {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct UndoInfo {
     pub own_castling_rights: CastlingRights,
     pub opp_castling_rights: CastlingRights,
