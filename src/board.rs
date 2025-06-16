@@ -416,6 +416,20 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_file_idx() {
+        for idx in 0..7 {
+            assert_eq!(file_index(square_index(0, idx)), idx)
+        }
+    }
+
+    #[test]
+    fn test_rank_idx() {
+        for idx in 0..7 {
+            assert_eq!(rank_index(square_index(idx, 0)), idx)
+        }
+    }
+
+    #[test]
     fn test_idx_bijection() {
         for sq_idx in 0..63 {
             let rank = rank_index(sq_idx);
