@@ -1365,9 +1365,9 @@ mod tests {
     //  - eps
     //  - castles
     //  - promotions
-    fn perft_debug(depth: usize, exp_captures: u64) -> (u64, u64, u64, u64, u64) {
+    fn perft_debug(depth: usize) -> (u64, u64, u64, u64, u64) {
         let mut nodes = 0;
-        let mut captures: Vec<Vec<Move>> = Vec::new();
+        let mut captures = 0;
         let mut eps = 0;
         let mut castles = 0;
         let mut promotions = 0;
@@ -1407,21 +1407,11 @@ mod tests {
                 }
 
                 if m.capture.is_some() {
-                    let (mut ms, _): (Vec<Move>, Vec<board::UndoInfo>) =
-                        undo_stack.iter().cloned().unzip();
-                    ms.push(m.clone());
-                    captures.push(ms);
+                    captures += 1;
                 }
             }
 
             undo_stack.push((m, u));
-
-            assert!(
-                captures.len() as u64 <= exp_captures,
-                "board:\n{:#?} moves:\n{:#?}",
-                board,
-                captures
-            );
 
             if d < depth {
                 let moves = move_gen.legal_moves(&board);
@@ -1429,7 +1419,7 @@ mod tests {
             }
         }
 
-        (nodes, captures.len() as u64, eps, castles, promotions)
+        (nodes, captures, eps, castles, promotions)
     }
 
     #[test]
@@ -1915,34 +1905,56 @@ mod tests {
 
     #[test]
     fn perft_1() {
-        let (nodes, captures, eps, castles, promotions) = perft_debug(1, 0);
+        let (nodes, captures, eps, castles, promotions) = perft_debug(1);
 
         assert_eq!(captures, 0);
         assert_eq!(eps, 0);
         assert_eq!(castles, 0);
         assert_eq!(promotions, 0);
-        assert_eq!(nodes, 20)
+        assert_eq!(nodes, 20);
     }
 
     #[test]
     fn perft_2() {
-        let (nodes, captures, eps, castles, promotions) = perft_debug(2, 0);
+        let (nodes, captures, eps, castles, promotions) = perft_debug(2);
 
         assert_eq!(captures, 0);
         assert_eq!(eps, 0);
         assert_eq!(castles, 0);
         assert_eq!(promotions, 0);
-        assert_eq!(nodes, 400)
+        assert_eq!(nodes, 400);
     }
 
     #[test]
     fn perft_3() {
-        let (nodes, captures, eps, castles, promotions) = perft_debug(3, 34);
+        let (nodes, captures, eps, castles, promotions) = perft_debug(3);
 
         assert_eq!(captures, 34);
         assert_eq!(eps, 0);
         assert_eq!(castles, 0);
         assert_eq!(promotions, 0);
-        assert_eq!(nodes, 8902)
+        assert_eq!(nodes, 8902);
+    }
+
+    #[test]
+    fn perft_4() {
+        let (nodes, captures, eps, castles, promotions) = perft_debug(4);
+
+        assert_eq!(captures, 1576);
+        assert_eq!(eps, 0);
+        assert_eq!(castles, 0);
+        assert_eq!(promotions, 0);
+        assert_eq!(nodes,  197_281)
+    }
+
+    #[test]
+    fn perft_5() {
+        let (nodes, captures, eps, castles, promotions) = perft_debug(5);
+
+        assert_eq!(captures,  82_719);
+        assert_eq!(eps, 258);
+        assert_eq!(castles, 0);
+        assert_eq!(promotions, 0);
+        assert_eq!(nodes,   4_865_609)
     }
 }
