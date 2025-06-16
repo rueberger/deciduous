@@ -2,7 +2,6 @@
 use std::iter;
 
 use crate::board;
-use crate::render_board;
 use crate::utils;
 
 static PROMOTION_OPTIONS: [board::Piece; 4] = [
@@ -362,7 +361,7 @@ impl MoveGen {
         let double_pushes = ((((own_pawns & self.mask_rank[1]) << 8) & empty) << 8) & empty;
 
         for (from_idx, to_idx) in self
-            .parse_vertical_moves(normal_single_pushes, own_pawns)
+            .parse_sliding_moves(normal_single_pushes, own_pawns, Orientation::North)
             .iter()
         {
             move_list.push(Move {
@@ -375,12 +374,15 @@ impl MoveGen {
             })
         }
 
-        for (from_idx, to_idx) in self.parse_vertical_moves(promotions, own_pawns).iter() {
-            for piece in PROMOTION_OPTIONS {
+        for (from_idx, to_idx) in self
+            .parse_sliding_moves(promotions, own_pawns, Orientation::North)
+            .iter()
+        {
+            for promotion in PROMOTION_OPTIONS {
                 move_list.push(Move {
                     from: *from_idx,
                     to: *to_idx,
-                    piece: piece,
+                    piece: promotion,
                     color: board.color(),
                     capture: None,
                     category: MoveCategory::Promotion,
@@ -388,7 +390,10 @@ impl MoveGen {
             }
         }
 
-        for (from_idx, to_idx) in self.parse_vertical_moves(double_pushes, own_pawns).iter() {
+        for (from_idx, to_idx) in self
+            .parse_sliding_moves(double_pushes, own_pawns, Orientation::North)
+            .iter()
+        {
             move_list.push(Move {
                 from: *from_idx,
                 to: *to_idx,
@@ -410,16 +415,29 @@ impl MoveGen {
         let opp_pawns = board.opp_pieces & board.pawns;
 
         let right_captures = ((own_pawns << 9) & self.clear_file[0]) & board.opp_pieces;
-        let normal_right_captures =
-            self.parse_diagonal_moves(right_captures & self.clear_rank[7], own_pawns);
-        let right_capture_promotions =
-            self.parse_diagonal_moves(right_captures & self.mask_rank[7], own_pawns);
+        let normal_right_captures = self.parse_sliding_moves(
+            right_captures & self.clear_rank[7],
+            own_pawns,
+            Orientation::NorthEast,
+        );
+        let right_capture_promotions = self.parse_sliding_moves(
+            right_captures & self.mask_rank[7],
+            own_pawns,
+            Orientation::NorthEast,
+        );
 
         let left_captures = ((own_pawns << 7) & self.clear_file[7]) & board.opp_pieces;
-        let normal_left_captures =
-            self.parse_anti_diagonal_moves(left_captures & self.clear_rank[7], own_pawns);
-        let left_capture_promotions =
-            self.parse_anti_diagonal_moves(left_captures & self.mask_rank[7], own_pawns);
+        let normal_left_captures = self.parse_sliding_moves(
+            left_captures & self.clear_rank[7],
+            own_pawns,
+            Orientation::NorthWest,
+        );
+
+        let left_capture_promotions = self.parse_sliding_moves(
+            left_captures & self.mask_rank[7],
+            own_pawns,
+            Orientation::NorthWest,
+        );
 
         for (from_idx, to_idx) in normal_right_captures.iter() {
             move_list.push(Move {
@@ -648,7 +666,7 @@ impl MoveGen {
             let axis = orientation.axis();
 
             let moves = self.sliding_moves(&orientation, pieces, empty);
-            let captures = self.sliding_captures(&orientation, moves, board);
+            let captures = self.sliding_captures(&orientation, moves | pieces, board);
 
             let queens = board.queens() & board.own_pieces;
             let rooks = board.rooks() & board.own_pieces;
@@ -741,7 +759,7 @@ impl MoveGen {
             let axis = orientation.axis();
 
             let moves = self.sliding_moves(&orientation, pieces, empty);
-            let captures = self.sliding_captures(&orientation, moves, board);
+            let captures = self.sliding_captures(&orientation, moves | pieces, board);
 
             let queens = board.queens() & board.own_pieces;
             let bishops = board.bishops() & board.own_pieces;
@@ -867,16 +885,6 @@ impl MoveGen {
                 let piece_mask = orientation.ray(&self, *piece_1 as usize)
                     & orientation.antipode().ray(&self, *piece_2 as usize);
 
-                // TODO: remove once tested
-                let neighboring = ((ortho_axis.axis_idx(*piece_1) as i8)
-                    - (ortho_axis.axis_idx(*piece_2) as i8))
-                    .abs()
-                    == 1;
-                // dbg!(&piece_idxs);
-                // dbg!(neighboring);
-                // dbg!(piece_mask);
-                debug_assert!(piece_mask != 0 || neighboring);
-
                 move_list.append(&mut self.parse_single_piece_moves(moves & piece_mask, *piece_1));
             }
 
@@ -922,78 +930,6 @@ impl MoveGen {
         };
 
         (from_idx, to_idx)
-    }
-
-    // TODO: check validity of pieces?
-    /// Parse a bitboard of horizontal moves into a move list
-    /// All pieces must be on their own rank
-    fn parse_horizontal_moves(&self, moves: u64, pieces: u64) -> Vec<(u8, u8)> {
-        let mut move_list = Vec::new();
-        let piece_idxs = serialize_board(pieces);
-
-        for piece_idx in piece_idxs.iter() {
-            let piece_rank = board::rank_index(*piece_idx);
-            let masked = moves & self.mask_rank[piece_rank as usize];
-            for move_idx in serialize_board(masked).iter() {
-                move_list.push((*piece_idx as u8, *move_idx as u8));
-            }
-        }
-
-        move_list
-    }
-
-    // TODO: check validity of pieces?
-    /// Parse a bitboard of vertical moves into a move list
-    /// All pieces must be on their own file
-    fn parse_vertical_moves(&self, moves: u64, pieces: u64) -> Vec<(u8, u8)> {
-        let mut move_list = Vec::new();
-        let piece_idxs = serialize_board(pieces);
-
-        for piece_idx in piece_idxs.iter() {
-            let piece_file = board::file_index(*piece_idx);
-            let masked = moves & self.mask_file[piece_file as usize];
-            for move_idx in serialize_board(masked).iter() {
-                move_list.push((*piece_idx as u8, *move_idx as u8));
-            }
-        }
-
-        move_list
-    }
-
-    // TODO: check validity of pieces?
-    /// Parse a bitboard of diagonal moves into a move list
-    /// All pieces must be on their own diagonal
-    fn parse_diagonal_moves(&self, moves: u64, pieces: u64) -> Vec<(u8, u8)> {
-        let mut move_list = Vec::new();
-        let piece_idxs = serialize_board(pieces);
-
-        for piece_idx in piece_idxs.iter() {
-            let piece_diag = board::diag_index(*piece_idx);
-            let masked = moves & self.mask_diag[piece_diag as usize];
-            for move_idx in serialize_board(masked).iter() {
-                move_list.push((*piece_idx as u8, *move_idx as u8));
-            }
-        }
-
-        move_list
-    }
-
-    // TODO: check validity of pieces?
-    /// Parse a bitboard of anti-diagonal moves into a move list
-    /// All pieces must be on their own anti-diagonal
-    fn parse_anti_diagonal_moves(&self, moves: u64, pieces: u64) -> Vec<(u8, u8)> {
-        let mut move_list = Vec::new();
-        let piece_idxs = serialize_board(pieces);
-
-        for piece_idx in piece_idxs.iter() {
-            let piece_anti_diag = board::anti_diag_index(*piece_idx);
-            let masked = moves & self.mask_anti_diag[piece_anti_diag as usize];
-            for move_idx in serialize_board(masked).iter() {
-                move_list.push((*piece_idx as u8, *move_idx as u8));
-            }
-        }
-
-        move_list
     }
 
     // ========================
@@ -1219,7 +1155,7 @@ fn pop_count(state: u64) -> u8 {
 }
 
 // TODO: I don't think color is necessary
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Move {
     pub from: u8, // integer 0-63
     pub to: u8,   // integer 0-63
@@ -1229,7 +1165,7 @@ pub struct Move {
     pub category: MoveCategory,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum MoveCategory {
     Normal,
     QueensideCastle,
@@ -1239,6 +1175,7 @@ pub enum MoveCategory {
     Promotion,
 }
 
+#[derive(Debug)]
 pub enum Axis {
     // horizontal
     Rank,
@@ -1280,7 +1217,7 @@ impl Axis {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum Orientation {
     North,
     NorthEast,
@@ -1428,9 +1365,9 @@ mod tests {
     //  - eps
     //  - castles
     //  - promotions
-    fn perft_debug(depth: usize) -> (u64, u64, u64, u64, u64) {
+    fn perft_debug(depth: usize, exp_captures: u64) -> (u64, u64, u64, u64, u64) {
         let mut nodes = 0;
-        let mut captures = 0;
+        let mut captures: Vec<Vec<Move>> = Vec::new();
         let mut eps = 0;
         let mut castles = 0;
         let mut promotions = 0;
@@ -1470,11 +1407,21 @@ mod tests {
                 }
 
                 if m.capture.is_some() {
-                    captures += 1;
+                    let (mut ms, _): (Vec<Move>, Vec<board::UndoInfo>) =
+                        undo_stack.iter().cloned().unzip();
+                    ms.push(m.clone());
+                    captures.push(ms);
                 }
             }
 
             undo_stack.push((m, u));
+
+            assert!(
+                captures.len() as u64 <= exp_captures,
+                "board:\n{:#?} moves:\n{:#?}",
+                board,
+                captures
+            );
 
             if d < depth {
                 let moves = move_gen.legal_moves(&board);
@@ -1482,7 +1429,7 @@ mod tests {
             }
         }
 
-        (nodes, captures, eps, castles, promotions)
+        (nodes, captures.len() as u64, eps, castles, promotions)
     }
 
     #[test]
@@ -1630,7 +1577,7 @@ mod tests {
                 assert_eq!(
                     moves.len(),
                     2,
-                    "rank_idx: {rank_idx}, file_idx: {file_idx}, moves: {moves:#?}"
+                    "rank_idx: {rank_idx}, file_idx: {file_idx}, moves: {moves:#?} \n{b:#?}"
                 );
 
                 for m in moves.iter() {
@@ -1808,7 +1755,7 @@ mod tests {
     }
 
     #[test]
-    fn sliding_ortho_single() {
+    fn sliding_ortho_moves_single() {
         let move_gen = MoveGen::new();
 
         for sq in 0..63 {
@@ -1830,7 +1777,7 @@ mod tests {
     }
 
     #[test]
-    fn sliding_diag_single() {
+    fn sliding_diag_moves_single() {
         let move_gen = MoveGen::new();
 
         for sq in 0..63 {
@@ -1851,6 +1798,38 @@ mod tests {
                 expected as usize,
                 "rank_idx: {rank_idx}, file_idx: {file_idx}, moves: {moves:#?}"
             )
+        }
+    }
+
+    #[test]
+    fn sliding_ortho_captures_single() {
+        let move_gen = MoveGen::new();
+
+        for sq in 0..63 {
+            let enemy_sqs = serialize_board(
+                move_gen.north[sq] | move_gen.east[sq] | move_gen.south[sq] | move_gen.west[sq],
+            );
+
+            for enemy_sq in enemy_sqs {
+                let b = set_piece(empty_board(), true, sq as u8, board::Piece::Queen);
+
+                let b = set_piece(b, false, enemy_sq as u8, board::Piece::Queen);
+
+                let moves = move_gen.ortho_moves(&b);
+
+                let mut captures = 0;
+
+                for m in moves.iter() {
+                    if m.capture.is_some() {
+                        captures += 1;
+                    }
+                }
+
+                assert_eq!(
+                    captures, 1,
+                    "sq: {sq}, enemy sq: {enemy_sq}, moves: {moves:#?}"
+                );
+            }
         }
     }
 
@@ -1936,7 +1915,7 @@ mod tests {
 
     #[test]
     fn perft_1() {
-        let (nodes, captures, eps, castles, promotions) = perft_debug(1);
+        let (nodes, captures, eps, castles, promotions) = perft_debug(1, 0);
 
         assert_eq!(captures, 0);
         assert_eq!(eps, 0);
@@ -1947,7 +1926,7 @@ mod tests {
 
     #[test]
     fn perft_2() {
-        let (nodes, captures, eps, castles, promotions) = perft_debug(2);
+        let (nodes, captures, eps, castles, promotions) = perft_debug(2, 0);
 
         assert_eq!(captures, 0);
         assert_eq!(eps, 0);
@@ -1958,7 +1937,7 @@ mod tests {
 
     #[test]
     fn perft_3() {
-        let (nodes, captures, eps, castles, promotions) = perft_debug(2);
+        let (nodes, captures, eps, castles, promotions) = perft_debug(3, 34);
 
         assert_eq!(captures, 34);
         assert_eq!(eps, 0);
