@@ -578,7 +578,6 @@ impl MoveGen {
         move_list
     }
 
-    // TODO: must check the squares we're passing through for check, must also check king square
     // Pseudo-legal castling move generation
     // Returned moves describe rook moves
     pub fn castling_moves(&self, board: &board::Board) -> Vec<Move> {
@@ -869,9 +868,13 @@ impl MoveGen {
                     & orientation.antipode().ray(&self, *piece_2 as usize);
 
                 // TODO: remove once tested
-                let neighboring = (ortho_axis.axis_idx(*piece_1) as i8)
-                    - (ortho_axis.axis_idx(*piece_2) as i8).abs()
+                let neighboring = ((ortho_axis.axis_idx(*piece_1) as i8)
+                    - (ortho_axis.axis_idx(*piece_2) as i8))
+                    .abs()
                     == 1;
+                // dbg!(&piece_idxs);
+                // dbg!(neighboring);
+                // dbg!(piece_mask);
                 debug_assert!(piece_mask != 0 || neighboring);
 
                 move_list.append(&mut self.parse_single_piece_moves(moves & piece_mask, *piece_1));
@@ -1418,6 +1421,70 @@ mod tests {
         b
     }
 
+    // TODO: could probably avoid the duplicated logic by turning the other one into an iterator?
+    // Returns:
+    //  - nodes
+    //  - captures
+    //  - eps
+    //  - castles
+    //  - promotions
+    fn perft_debug(depth: usize) -> (u64, u64, u64, u64, u64) {
+        let mut nodes = 0;
+        let mut captures = 0;
+        let mut eps = 0;
+        let mut castles = 0;
+        let mut promotions = 0;
+
+        let mut board = board::Board::new();
+        let move_gen = MoveGen::new();
+
+        // (move, depth)
+        let mut move_stack: Vec<(Move, usize)> = Vec::new();
+        // (move, undo)
+        let mut undo_stack: Vec<(Move, board::UndoInfo)> = Vec::new();
+
+        let moves = move_gen.legal_moves(&board);
+        move_stack.extend(moves.into_iter().zip(iter::repeat(1)));
+
+        while !move_stack.is_empty() {
+            let (m, d) = move_stack.pop().unwrap();
+
+            // pop positions until we're behind the next move
+            while d <= undo_stack.len() {
+                let (mp, up) = undo_stack.pop().unwrap();
+                board.unmake_move(&mp, &up);
+            }
+
+            let u = board.make_move(&m);
+
+            // only count leaf nodes
+            if d == depth {
+                nodes += 1;
+
+                match m.category {
+                    MoveCategory::QueensideCastle => castles += 1,
+                    MoveCategory::KingsideCastle => castles += 1,
+                    MoveCategory::EnPassant => eps += 1,
+                    MoveCategory::Promotion => promotions += 1,
+                    _ => (),
+                }
+
+                if m.capture.is_some() {
+                    captures += 1;
+                }
+            }
+
+            undo_stack.push((m, u));
+
+            if d < depth {
+                let moves = move_gen.legal_moves(&board);
+                move_stack.extend(moves.into_iter().zip(iter::repeat(d + 1)));
+            }
+        }
+
+        (nodes, captures, eps, castles, promotions)
+    }
+
     #[test]
     fn test_fill_rank_0() {
         assert_eq!(fill_rank(0), board::FIRST_RANK);
@@ -1772,7 +1839,10 @@ mod tests {
             let moves = move_gen.diag_moves(&b);
 
             let expected = pop_count(
-                move_gen.north_east[sq] | move_gen.south_east[sq] | move_gen.south_west[sq] | move_gen.north_west[sq],
+                move_gen.north_east[sq]
+                    | move_gen.south_east[sq]
+                    | move_gen.south_west[sq]
+                    | move_gen.north_west[sq],
             );
             let rank_idx = board::rank_index(sq as u8);
             let file_idx = board::file_index(sq as u8);
@@ -1782,5 +1852,118 @@ mod tests {
                 "rank_idx: {rank_idx}, file_idx: {file_idx}, moves: {moves:#?}"
             )
         }
+    }
+
+    // it is annoying to do this in general, so just north for now
+    #[test]
+    fn sliding_ortho_colinear_north_2() {
+        let move_gen = MoveGen::new();
+
+        for file_idx in 0..7 {
+            for rank_idx in 1..7 {
+                let b = set_piece(
+                    empty_board(),
+                    true,
+                    board::square_index(0, file_idx),
+                    board::Piece::Queen,
+                );
+
+                let b = set_piece(
+                    b,
+                    true,
+                    board::square_index(rank_idx, file_idx),
+                    board::Piece::Queen,
+                );
+
+                let moves = move_gen.parse_sliding_moves(
+                    move_gen.north_moves(b.queens(), b.empty()),
+                    b.queens(),
+                    Orientation::North,
+                );
+
+                assert_eq!(
+                    moves.len(),
+                    6,
+                    "rank_idx: {rank_idx}, file_idx: {file_idx}, moves: {moves:#?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn sliding_ortho_colinear_north_3() {
+        let move_gen = MoveGen::new();
+
+        for file_idx in 0..7 {
+            for rank_idx_1 in 1..6 {
+                for rank_idx_2 in (rank_idx_1 + 1)..7 {
+                    let b = set_piece(
+                        empty_board(),
+                        true,
+                        board::square_index(0, file_idx),
+                        board::Piece::Queen,
+                    );
+
+                    let b = set_piece(
+                        b,
+                        true,
+                        board::square_index(rank_idx_1, file_idx),
+                        board::Piece::Queen,
+                    );
+
+                    let b = set_piece(
+                        b,
+                        true,
+                        board::square_index(rank_idx_2, file_idx),
+                        board::Piece::Queen,
+                    );
+
+                    let moves = move_gen.parse_sliding_moves(
+                        move_gen.north_moves(b.queens(), b.empty()),
+                        b.queens(),
+                        Orientation::North,
+                    );
+
+                    assert_eq!(
+                        moves.len(),
+                        5,
+                        "rank_idx_1: {rank_idx_1}, rank_idx_2: {rank_idx_2}, file_idx: {file_idx}, moves: {moves:#?}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn perft_1() {
+        let (nodes, captures, eps, castles, promotions) = perft_debug(1);
+
+        assert_eq!(captures, 0);
+        assert_eq!(eps, 0);
+        assert_eq!(castles, 0);
+        assert_eq!(promotions, 0);
+        assert_eq!(nodes, 20)
+    }
+
+    #[test]
+    fn perft_2() {
+        let (nodes, captures, eps, castles, promotions) = perft_debug(2);
+
+        assert_eq!(captures, 0);
+        assert_eq!(eps, 0);
+        assert_eq!(castles, 0);
+        assert_eq!(promotions, 0);
+        assert_eq!(nodes, 400)
+    }
+
+    #[test]
+    fn perft_3() {
+        let (nodes, captures, eps, castles, promotions) = perft_debug(2);
+
+        assert_eq!(captures, 34);
+        assert_eq!(eps, 0);
+        assert_eq!(castles, 0);
+        assert_eq!(promotions, 0);
+        assert_eq!(nodes, 8902)
     }
 }
