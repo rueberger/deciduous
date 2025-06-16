@@ -4,6 +4,7 @@
 /// occupancy of the corresponding square.
 /// Supports only little-endian architectures
 use std::mem;
+use std::fmt;
 use crate::moves;
 
 // Some magic constants
@@ -40,8 +41,8 @@ pub static UNIVERSAL_SET: u64 = 18446744073709551615;
 
 /// Square ordering is Little-Endian Rank-File
 ///
-/// 1: A B C D E F G H | 0 1 2 3 4 5 6 7
-/// 2: A B C D E F G H | 8 9 10 11 12 13 14 15
+/// 1: A B C D E F G H | 0  1  2  3  4  5  6  7
+/// 2: A B C D E F G H | 8  9  10 11 12 13 14 15
 /// 3: A B C D E F G H | 16 17 18 19 20 21 22 23
 /// ...
 /// 8: A B C D E F G H | 56 57 58 59 60 61 62 63
@@ -89,6 +90,7 @@ pub fn flip_square_index(sq_idx: u8) -> u8 {
     return moves::bitscan_lsd(flipped).unwrap();
 }
 
+#[derive(Clone)]
 pub struct Board {
     pub own_pieces: u64,
     pub opp_pieces: u64,
@@ -128,12 +130,12 @@ impl Board {
 
     // TODO: add tests
     pub fn color_flip(&mut self) {
-        self.own_pieces = self.own_pieces.to_be();
-        self.opp_pieces = self.opp_pieces.to_be();
+        self.own_pieces = self.own_pieces.swap_bytes();
+        self.opp_pieces = self.opp_pieces.swap_bytes();
         mem::swap(&mut self.own_pieces, &mut self.opp_pieces);
-        self.ortho_sliders = self.ortho_sliders.to_be();
-        self.diag_sliders = self.ortho_sliders.to_be();
-        self.pawns = self.pawns.to_be();
+        self.ortho_sliders = self.ortho_sliders.swap_bytes();
+        self.diag_sliders = self.diag_sliders.swap_bytes();
+        self.pawns = self.pawns.swap_bytes();
         // TODO: lc0 uses a BoardSquare class for this. should I?
         self.own_king = flip_square_index(self.own_king);
         self.opp_king = flip_square_index(self.opp_king);
@@ -265,6 +267,8 @@ impl Board {
                 _ => (),
             }
         }
+
+        self.color_flip();
     }
 
     /// Make move. Mutates state of self.
@@ -363,9 +367,55 @@ impl Board {
         self.pawns &= CLEAR_FIRST_RANK;
         self.pawns |= undo.en_passant_state as u64;
     }
+
+    fn format_board(&self) -> String {
+        let mut render = String::new();
+
+        let mut b = self.clone();
+
+        if self.flipped {
+            b.color_flip();
+        }
+
+        for rank in (0..8).rev() {
+            for file in 0..8 {
+                let idx = square_index(rank, file);
+
+                render.push('[');
+                if b.empty() & (1 << idx) != 0 {
+                    render.push(' ');
+                    render.push(' ');
+                } else {
+                    if b.own_pieces & (1 << idx) != 0 {
+                        render.push('w');
+                    } else {
+                        render.push('b')
+                    }
+
+                    match b.identify(idx) {
+                        Piece::Pawn => render.push('P'),
+                        Piece::Bishop => render.push('B'),
+                        Piece::Knight => render.push('N'),
+                        Piece::Rook => render.push('R'),
+                        Piece::King => render.push('K'),
+                        Piece::Queen => render.push('Q'),
+                    }
+                }
+                render.push(']')
+            }
+            render.push('\n')
+        }
+        return render;
+    }
 }
 
-#[derive(Copy, Clone)]
+impl fmt::Debug for Board {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.format_board())
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
 pub struct CastlingRights {
     pub kingside: bool,
     pub queenside: bool,
@@ -387,6 +437,7 @@ impl CastlingRights {
 }
 
 
+#[derive(Debug)]
 pub struct UndoInfo {
     pub own_castling_rights: CastlingRights,
     pub opp_castling_rights: CastlingRights,
