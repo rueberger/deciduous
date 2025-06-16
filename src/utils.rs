@@ -22,7 +22,7 @@ pub fn bad_argsort(arr: Vec<Option<u8>>) -> Vec<u8> {
 // Returns
 //   unique - Vec<u8>
 //   dup - Vec<u8>
-fn partition_unique(mut arr: Vec<u8>) -> (Vec<u8>, Vec<u8>) {
+pub fn partition_unique(mut arr: Vec<u8>) -> (Vec<u8>, Vec<u8>) {
     // TODO: debug asserts good practice??
     debug_assert!(arr.len() >= 1);
 
