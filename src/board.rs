@@ -400,6 +400,27 @@ impl Board {
             b.color_flip();
         }
 
+        b.color_flip();
+
+        // black EP state
+        for idx in 0..8 {
+            render.push('[');
+            if b.pawns & (1 << idx) != 0 {
+                render.push('E');
+                render.push('P');
+            } else {
+                render.push(' ');
+                render.push(' ');
+            }
+            render.push(']');
+        }
+
+        b.color_flip();
+
+        render.push('\n');
+        render.push_str(&"-".repeat(32));
+        render.push('\n');
+
         for rank in (0..8).rev() {
             for file in 0..8 {
                 let idx = square_index(rank, file);
@@ -427,6 +448,22 @@ impl Board {
                 render.push(']')
             }
             render.push('\n')
+        }
+
+        render.push_str(&"-".repeat(32));
+        render.push('\n');
+
+        // white EP state
+        for idx in 0..8 {
+            render.push('[');
+            if b.pawns & (1 << idx) != 0 {
+                render.push('E');
+                render.push('P');
+            } else {
+                render.push(' ');
+                render.push(' ');
+            }
+            render.push(']')
         }
 
         return render;
@@ -525,7 +562,7 @@ mod tests {
             };
 
             let u = b.make_move(&m);
-            assert!(b.pawns & (1 << idx) != 0,);
+            assert!(b.pawns & (1 << idx) != 0, "{:#?}", b);
             assert_eq!(moves::pop_count(b.pawns & FIRST_RANK), 1);
 
             b.unmake_move(&m, &u);
