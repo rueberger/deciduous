@@ -31,6 +31,10 @@ pub static A_FILE: u64 = 0x0101010101010101;
 pub static FIRST_RANK: u64 = 0x00000000000000FF;
 // All bits excepting the first rank set
 static CLEAR_FIRST_RANK: u64 = 18446744073709551360;
+// All bits excepting the last rank set
+static CLEAR_LAST_RANK: u64 = 72057594037927935;
+// All bits excepting the first and last rank set
+pub static CLEAR_FIRST_LAST_RANK: u64 = CLEAR_FIRST_RANK & CLEAR_LAST_RANK;
 // All bits set from a1-h8
 static DIAGONAL: u64 = 0x8040201008040201;
 // All bits set from a8-h1
@@ -211,7 +215,7 @@ impl Board {
         let piece: u64 = 1 << piece_idx;
         let kings: u64 = (1 << self.own_king) | (1 << self.opp_king);
 
-        if (self.pawns & piece) != 0 {
+        if (self.pawns & CLEAR_FIRST_LAST_RANK & piece) != 0 {
             return Piece::Pawn;
         } else if (self.rooks() & piece) != 0 {
             return Piece::Rook;
@@ -668,4 +672,7 @@ mod tests {
 
         }
     }
+
+    // TODO: test that setting EP state doesn't  set  own_pieces
+
 }

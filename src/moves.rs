@@ -352,7 +352,7 @@ impl MoveGen {
     pub fn pawn_pushes(&self, board: &board::Board) -> Vec<Move> {
         let mut move_list = Vec::new();
 
-        let own_pawns = board.own_pieces & board.pawns;
+        let own_pawns = board.own_pieces & board.pawns & self.clear_rank[0];
         let empty = board.empty();
 
         let single_pushes = (own_pawns << 8) & empty;
@@ -411,8 +411,8 @@ impl MoveGen {
     pub fn pawn_captures(&self, board: &board::Board) -> Vec<Move> {
         let mut move_list = Vec::new();
 
-        let own_pawns = board.own_pieces & board.pawns;
-        let opp_pawns = board.opp_pieces & board.pawns;
+        let own_pawns = board.own_pieces & board.pawns & board::CLEAR_FIRST_LAST_RANK;
+        let opp_pawns = board.opp_pieces & board.pawns & board::CLEAR_FIRST_LAST_RANK;
 
         let right_captures = ((own_pawns << 9) & self.clear_file[0]) & board.opp_pieces;
         let normal_right_captures = self.parse_sliding_moves(
@@ -487,8 +487,10 @@ impl MoveGen {
             }
         }
 
+        let opp_ep_pawns = board.pawns & self.mask_rank[7];
+
         let right_ep_move = (own_pawns << 25) & self.clear_file[0] & self.mask_rank[7];
-        if right_ep_move & opp_pawns != 0 {
+        if right_ep_move & opp_ep_pawns != 0 {
             let (from_idx, to_idx) = self.parse_ep_capture_move(right_ep_move, Orientation::East);
             move_list.push(Move {
                 from: from_idx,
@@ -501,7 +503,7 @@ impl MoveGen {
         }
 
         let left_ep_move = (own_pawns << 23) & self.clear_file[7] & self.mask_rank[7];
-        if left_ep_move & opp_pawns != 0 {
+        if left_ep_move & opp_ep_pawns != 0 {
             let (from_idx, to_idx) = self.parse_ep_capture_move(left_ep_move, Orientation::West);
             move_list.push(Move {
                 from: from_idx,
