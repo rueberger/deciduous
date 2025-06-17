@@ -296,6 +296,12 @@ impl Board {
     /// Does not check move legality
     /// Returns undo information
     pub fn make_move(&mut self, m: &moves::Move) -> UndoInfo {
+        let undo = UndoInfo {
+            castling_rights: self.own_castling_rights,
+            // Casting behavior keeps the least significant bits
+            en_passant_state: self.pawns as u8,
+        };
+
         self.move_involution(m);
 
         // Clear en passant state from previous turn
@@ -305,13 +311,6 @@ impl Board {
         if m.category == moves::MoveCategory::DoublePawnPush {
             self.pawns |= 1 << file_index(m.from);
         }
-
-        let undo = UndoInfo {
-            own_castling_rights: self.own_castling_rights,
-            opp_castling_rights: self.opp_castling_rights,
-            // Casting behavior keeps the least significant bits
-            en_passant_state: self.pawns as u8,
-        };
 
         // Castling logic
         match m.category {
@@ -384,8 +383,7 @@ impl Board {
             }
         }
 
-        self.own_castling_rights = undo.own_castling_rights;
-        self.opp_castling_rights = undo.opp_castling_rights;
+        self.own_castling_rights = undo.castling_rights;
 
         self.pawns &= CLEAR_FIRST_RANK;
         self.pawns |= undo.en_passant_state as u64;
@@ -499,8 +497,7 @@ impl CastlingRights {
 
 #[derive(Debug, Clone)]
 pub struct UndoInfo {
-    pub own_castling_rights: CastlingRights,
-    pub opp_castling_rights: CastlingRights,
+    pub castling_rights: CastlingRights,
     en_passant_state: u8,
 }
 
@@ -549,28 +546,126 @@ mod tests {
 
     #[test]
     fn make_unmake_preserves_ep_state() {
-        let mut b = Board::new();
+        let last_rank = FIRST_RANK << 56;
 
+        // make, unmake, make
         for idx in 0..8 {
+            let mut b = Board::new();
+
             let m = moves::Move {
                 from: idx + 8,
                 to: idx + 24,
                 piece: Piece::Pawn,
                 color: Color::White,
                 capture: None,
-                category: moves::MoveCategory::Normal,
+                category: moves::MoveCategory::DoublePawnPush,
             };
 
             let u = b.make_move(&m);
-            assert!(b.pawns & (1 << idx) != 0, "{:#?}", b);
-            assert_eq!(moves::pop_count(b.pawns & FIRST_RANK), 1);
+
+            assert!(b.pawns & (1 << idx + 56) != 0, "idx: {}, b:\n{:#?}", idx, b);
+            assert_eq!(moves::pop_count(b.pawns & FIRST_RANK), 0, "idx: {}, b:\n{:#?}", idx, b);
+            assert_eq!(moves::pop_count(b.pawns & last_rank), 1, "idx: {}, b:\n{:#?}", idx, b);
 
             b.unmake_move(&m, &u);
-            assert_eq!(moves::pop_count(b.pawns & FIRST_RANK), 0);
+            assert_eq!(
+                moves::pop_count(b.pawns & FIRST_RANK),
+                0,
+                "idx: {}, b:\n{:#?}",
+                idx,
+                b
+            );
+            assert_eq!(
+                moves::pop_count(b.pawns & last_rank),
+                0,
+                "idx: {}, b:\n{:#?}",
+                idx,
+                b
+            );
 
             let u = b.make_move(&m);
-            assert!(b.pawns & (1 << idx) != 0);
-            assert_eq!(moves::pop_count(b.pawns & FIRST_RANK), 1);
+            assert!(b.pawns & (1 << idx + 56) != 0, "idx: {}, b:\n{:#?}", idx, b);
+            assert_eq!(moves::pop_count(b.pawns & FIRST_RANK), 0, "idx: {}, b:\n{:#?}", idx, b);
+            assert_eq!(moves::pop_count(b.pawns & last_rank), 1, "idx: {}, b:\n{:#?}", idx, b);
+        }
+
+        // make (double pawn push), make (normal), make (normal), unmake, unmake, unmake
+        for idx in 0..8 {
+            let mut b = Board::new();
+
+            let m1 = moves::Move {
+                from: idx + 8,
+                to: idx + 24,
+                piece: Piece::Pawn,
+                color: Color::White,
+                capture: None,
+                category: moves::MoveCategory::DoublePawnPush,
+            };
+
+            let m2 = moves::Move {
+                from: 1,
+                to: 18,
+                piece: Piece::Knight,
+                color: Color::Black,
+                capture: None,
+                category: moves::MoveCategory::Normal,
+            };
+
+            let m3 = moves::Move {
+                from: 1,
+                to: 18,
+                piece: Piece::Knight,
+                color: Color::White,
+                capture: None,
+                category: moves::MoveCategory::Normal,
+            };
+
+            println!("\n{:#?}", b);
+
+            let u1 = b.make_move(&m1);
+            // EP bit set for white, blacks turn
+            println!("\n{:#?}", b);
+            assert!(b.pawns & (1 << idx + 56) != 0, "idx: {}, b:\n{:#?}", idx, b);
+            assert_eq!(moves::pop_count(b.pawns & FIRST_RANK), 0, "idx: {}, b:\n{:#?}", idx, b);
+            assert_eq!(moves::pop_count(b.pawns & last_rank), 1, "idx: {}, b:\n{:#?}", idx, b);
+
+            let u2 = b.make_move(&m2);
+            // EP bit still set for white, whites turn
+            println!("\n{:#?}", b);
+            assert!(b.pawns & (1 << idx) != 0, "idx: {}, b:\n{:#?}", idx, b);
+            assert_eq!(moves::pop_count(b.pawns & FIRST_RANK), 1, "idx: {}, b:\n{:#?}", idx, b);
+            assert_eq!(moves::pop_count(b.pawns & last_rank), 0, "idx: {}, b:\n{:#?}", idx, b);
+
+            let u3 = b.make_move(&m3);
+            // EP bit no longer set anywhere, blacks turn
+            println!("\n{:#?}", b);
+            assert!(b.pawns & (1 << idx + 56) == 0, "idx: {}, b:\n{:#?}", idx, b);
+            assert_eq!(moves::pop_count(b.pawns & FIRST_RANK), 0, "idx: {}, b:\n{:#?}", idx, b);
+            assert_eq!(moves::pop_count(b.pawns & last_rank), 0, "idx: {}, b:\n{:#?}", idx, b);
+
+            b.unmake_move(&m3, &u3);
+            // EP bit should again be set for white, whites turn
+            println!("\n{:#?}", b);
+            assert!(b.pawns & (1 << idx) != 0, "idx: {}, u:\n{:#?}, b:\n{:#?}", idx, u3, b);
+            assert_eq!(moves::pop_count(b.pawns & FIRST_RANK), 1, "idx: {}, b:\n{:#?}", idx, b);
+            assert_eq!(moves::pop_count(b.pawns & last_rank), 0, "idx: {}, b:\n{:#?}", idx, b);
+
+
+            b.unmake_move(&m2, &u2);
+            // EP bit should still be set for white, blacks turn
+            println!("\n{:#?}", b);
+            assert!(b.pawns & (1 << idx + 56) != 0, "idx: {}, b:\n{:#?}", idx, b);
+            assert_eq!(moves::pop_count(b.pawns & FIRST_RANK), 0, "idx: {}, b:\n{:#?}", idx, b);
+            assert_eq!(moves::pop_count(b.pawns & last_rank), 1, "idx: {}, b:\n{:#?}", idx, b);
+
+
+            b.unmake_move(&m1, &u1);
+            // EP bit no longer set anywhere, whites turn
+            println!("\n{:#?}", b);
+            assert!(b.pawns & (1 << idx) == 0, "idx: {}, b:\n{:#?}", idx, b);
+            assert_eq!(moves::pop_count(b.pawns & FIRST_RANK), 0, "idx: {}, b:\n{:#?}", idx, b);
+            assert_eq!(moves::pop_count(b.pawns & last_rank), 0, "idx: {}, b:\n{:#?}", idx, b);
+
         }
     }
 }
