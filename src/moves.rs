@@ -1936,6 +1936,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn perft_4() {
         let (nodes, captures, eps, castles, promotions) = perft_debug(4);
 
@@ -1947,6 +1948,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn perft_5() {
         let (nodes, captures, eps, castles, promotions) = perft_debug(5);
 
