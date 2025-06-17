@@ -1,11 +1,12 @@
+use crate::moves;
+use std::char;
+use std::fmt;
 /// Module of operations for manipulating the board representation
 /// The board is represented as a bitboard, an array of 64 bit integers
 /// As the chess board has 64 squares, we assign each square a bit, with the value of each bit determined by the
 /// occupancy of the corresponding square.
 /// Supports only little-endian architectures
 use std::mem;
-use std::fmt;
-use crate::moves;
 
 // Some magic constants
 // Initial configuration of white
@@ -72,6 +73,15 @@ pub fn rank_index(square_idx: u8) -> u8 {
 
 pub fn file_index(square_idx: u8) -> u8 {
     square_idx & 7
+}
+
+pub fn fmt_sq(sq: u8) -> String {
+    let mut c = String::new();
+
+    c.push((b'a' as u8 + file_index(sq)) as char);
+    c.push(std::char::from_digit((rank_index(sq) + 1) as u32, 10).unwrap());
+
+    c
 }
 
 /// Returns the index of the diagonal square_idx lies on
@@ -176,13 +186,12 @@ impl Board {
 
     pub fn sliders(&self, orientation: &moves::Orientation) -> u64 {
         match orientation.axis() {
-            moves::Axis::Rank =>  self.ortho_sliders,
+            moves::Axis::Rank => self.ortho_sliders,
             moves::Axis::File => self.ortho_sliders,
             moves::Axis::Diagonal => self.diag_sliders,
-            moves::Axis::AntiDiagonal => self.diag_sliders
+            moves::Axis::AntiDiagonal => self.diag_sliders,
         }
     }
-
 
     pub fn knights(&self) -> u64 {
         let kings = ((1 as u64) << self.own_king) | ((1 as u64) << self.opp_king);
@@ -356,7 +365,6 @@ impl Board {
         self.move_involution(m);
 
         match m.category {
-
             moves::MoveCategory::KingsideCastle => {
                 self.own_king = 4;
                 self.own_pieces ^= (1 << 4) | (1 << 6);
@@ -420,6 +428,7 @@ impl Board {
             }
             render.push('\n')
         }
+
         return render;
     }
 }
@@ -451,15 +460,12 @@ impl CastlingRights {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct UndoInfo {
     pub own_castling_rights: CastlingRights,
     pub opp_castling_rights: CastlingRights,
     en_passant_state: u8,
 }
-
-
 
 #[derive(Copy, Clone, Debug)]
 pub enum Color {
@@ -501,6 +507,33 @@ mod tests {
             let rank = rank_index(sq_idx);
             let file = file_index(sq_idx);
             assert_eq!(square_index(rank, file), sq_idx as u8)
+        }
+    }
+
+    #[test]
+    fn make_unmake_preserves_ep_state() {
+        let mut b = Board::new();
+
+        for idx in 0..7 {
+            let m = moves::Move {
+                from: idx + 8,
+                to: idx + 24,
+                piece: Piece::Pawn,
+                color: Color::White,
+                capture: None,
+                category: moves::MoveCategory::Normal,
+            };
+
+            let u = b.make_move(&m);
+            assert!(b.pawns & (1 << idx) != 0,);
+            assert_eq!(moves::pop_count(b.pawns & FIRST_RANK), 1);
+
+            b.unmake_move(&m, &u);
+            assert_eq!(moves::pop_count(b.pawns & FIRST_RANK), 0);
+
+            let u = b.make_move(&m);
+            assert!(b.pawns & (1 << idx) != 0);
+            assert_eq!(moves::pop_count(b.pawns & FIRST_RANK), 1);
         }
     }
 }
