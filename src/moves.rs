@@ -1043,9 +1043,8 @@ impl MoveGen {
 }
 
 // Tally all legal moves up to depth
-pub fn perft(depth: usize) -> u64 {
+pub fn perft(mut board: board::Board, depth: usize) -> u64 {
     let mut nodes = 0;
-    let mut board = board::Board::new();
     let move_gen = MoveGen::new();
 
     // (move, depth)
@@ -1150,7 +1149,7 @@ pub fn serialize_board(mut state: u64) -> Vec<u8> {
 }
 
 // TODO: optimize, currently uses naive implementation
-fn pop_count(state: u64) -> u8 {
+pub fn pop_count(state: u64) -> u8 {
     serialize_board(state).len() as u8
 }
 
@@ -1459,7 +1458,7 @@ mod tests {
     fn single_pawn_second_rank_push() {
         let move_gen = MoveGen::new();
 
-        for file_idx in 0..7 {
+        for file_idx in 0..8 {
             let b = pawns(vec![board::square_index(1, file_idx)], Vec::new());
             assert_eq!(move_gen.pawn_pushes(&b).len(), 2);
         }
@@ -1470,7 +1469,7 @@ mod tests {
         let move_gen = MoveGen::new();
 
         for rank_idx in 3..6 {
-            for file_idx in 0..7 {
+            for file_idx in 0..8 {
                 let b = pawns(vec![board::square_index(rank_idx, file_idx)], Vec::new());
                 assert_eq!(move_gen.pawn_pushes(&b).len(), 1);
             }
@@ -1515,7 +1514,7 @@ mod tests {
     fn single_pawn_promotion() {
         let move_gen = MoveGen::new();
 
-        for file_idx in 0..7 {
+        for file_idx in 0..8 {
             let b = pawns(vec![board::square_index(6, file_idx)], Vec::new());
 
             let moves = move_gen.pawn_pushes(&b);
@@ -1828,8 +1827,8 @@ mod tests {
     fn sliding_ortho_colinear_north_2() {
         let move_gen = MoveGen::new();
 
-        for file_idx in 0..7 {
-            for rank_idx in 1..7 {
+        for file_idx in 0..8 {
+            for rank_idx in 1..8 {
                 let b = set_piece(
                     empty_board(),
                     true,
@@ -1863,9 +1862,9 @@ mod tests {
     fn sliding_ortho_colinear_north_3() {
         let move_gen = MoveGen::new();
 
-        for file_idx in 0..7 {
-            for rank_idx_1 in 1..6 {
-                for rank_idx_2 in (rank_idx_1 + 1)..7 {
+        for file_idx in 0..8 {
+            for rank_idx_1 in 1..8 {
+                for rank_idx_2 in (rank_idx_1 + 1)..8 {
                     let b = set_piece(
                         empty_board(),
                         true,
@@ -1944,17 +1943,17 @@ mod tests {
         assert_eq!(eps, 0);
         assert_eq!(castles, 0);
         assert_eq!(promotions, 0);
-        assert_eq!(nodes,  197_281)
+        assert_eq!(nodes, 197_281)
     }
 
     #[test]
     fn perft_5() {
         let (nodes, captures, eps, castles, promotions) = perft_debug(5);
 
-        assert_eq!(captures,  82_719);
+        assert_eq!(captures, 82_719);
         assert_eq!(eps, 258);
         assert_eq!(castles, 0);
         assert_eq!(promotions, 0);
-        assert_eq!(nodes,   4_865_609)
+        assert_eq!(nodes, 4_865_609)
     }
 }

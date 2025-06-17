@@ -489,14 +489,14 @@ mod tests {
 
     #[test]
     fn test_file_idx() {
-        for idx in 0..7 {
+        for idx in 0..8 {
             assert_eq!(file_index(square_index(0, idx)), idx)
         }
     }
 
     #[test]
     fn test_rank_idx() {
-        for idx in 0..7 {
+        for idx in 0..8 {
             assert_eq!(rank_index(square_index(idx, 0)), idx)
         }
     }
@@ -514,7 +514,7 @@ mod tests {
     fn make_unmake_preserves_ep_state() {
         let mut b = Board::new();
 
-        for idx in 0..7 {
+        for idx in 0..8 {
             let m = moves::Move {
                 from: idx + 8,
                 to: idx + 24,
