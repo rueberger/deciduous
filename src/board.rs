@@ -199,7 +199,8 @@ impl Board {
 
     pub fn knights(&self) -> u64 {
         let kings = ((1 as u64) << self.own_king) | ((1 as u64) << self.opp_king);
-        let other_pieces = self.ortho_sliders | self.diag_sliders | self.pawns | kings;
+        let pawns = self.pawns & CLEAR_FIRST_LAST_RANK;
+        let other_pieces = self.ortho_sliders | self.diag_sliders | pawns | kings;
         (self.own_pieces | self.opp_pieces) & !other_pieces
     }
 
