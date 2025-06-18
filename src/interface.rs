@@ -8,12 +8,17 @@ use std::io;
 // If board passed generates moves against it, otherwise will be for startpos
 pub fn read_moves(b: &board::Board) -> Vec<moves::Move> {
     let mut move_list: Vec<moves::Move> = Vec::new();
+    let mut color = b.color();
 
     let mut input = String::new();
 
     io::stdin()
         .read_line(&mut input)
         .expect("Failed to read line");
+
+    if input.trim().len() == 0 {
+        return move_list
+    }
 
     for mstr in input.trim().split(" ") {
         assert!(
@@ -22,13 +27,28 @@ pub fn read_moves(b: &board::Board) -> Vec<moves::Move> {
             mstr.chars(),
             mstr.chars().count()
         );
+
         let from = parse_coord_str(&mstr[0..2]);
         let to = parse_coord_str(&mstr[2..4]);
 
-        move_list.push(create_move(&b, from, to));
+        move_list.push(create_move(&b, color, from, to));
+        color = color.flip();
     }
 
     move_list
+}
+
+// read int from stdin
+pub fn read_int() -> usize {
+    let mut input = String::new();
+
+    io::stdin()
+        .read_line(&mut input)
+        .expect("Failed to read line");
+
+    let input: usize = input.trim().parse().expect("Please type a number!");
+
+    input
 }
 
 // converts coord str (eg a4, g5) to board sq
@@ -51,10 +71,18 @@ pub fn parse_coord_str(coord_str: &str) -> u8 {
 }
 
 
+
+
 // Create a move given from and to square given current state of board
 // Doesn't validate move legality, but panics if you try to move an empty square
-fn create_move(b: &board::Board, from: u8, to: u8) -> moves::Move {
-    println!("f {} t {}", from, to);
+// Does not read color from board to facilitate use independent of make_move
+fn create_move(b: &board::Board, color: board::Color, mut from: u8, mut to: u8) -> moves::Move {
+    // make_move always uses the white coord system
+    if color == board::Color::Black {
+        from = board::flip_square_index(from);
+        to = board::flip_square_index(to);
+    }
+
     if b.empty() & (1 << from) != 0 {
         panic!("Can't generate a move from empty square");
     }
@@ -69,7 +97,7 @@ fn create_move(b: &board::Board, from: u8, to: u8) -> moves::Move {
         from,
         to,
         piece: b.identify(from),
-        color: b.color(),
+        color,
         capture,
         category: identify_move_category(from, to)
     }
