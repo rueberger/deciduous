@@ -66,7 +66,7 @@ pub static UNIVERSAL_SET: u64 = 18446744073709551615;
 /// 2: A B C D E F G H | 8  9  10 11 12 13 14 15
 /// 1: A B C D E F G H | 0  1  2  3  4  5  6  7
 pub fn square_index(rank_idx: u8, file_idx: u8) -> u8 {
-    assert!((rank_idx < 8) & (file_idx < 8));
+    assert!((rank_idx < 8) & (file_idx < 8), "r {} f {}", rank_idx, file_idx);
 
     rank_idx * 8 + file_idx
 }
