@@ -11,6 +11,17 @@ static PROMOTION_OPTIONS: [board::Piece; 4] = [
     board::Piece::Queen,
 ];
 
+static ORIENTATIONS: [Orientation; 8] = [
+    Orientation::East,
+    Orientation::NorthEast,
+    Orientation::North,
+    Orientation::NorthWest,
+    Orientation::West,
+    Orientation::SouthWest,
+    Orientation::South,
+    Orientation::SouthEast
+];
+
 // subset of orientations a piece on the first rank can be threatened from
 static FIRST_RANK_THREAT_ORIENTATIONS: [Orientation; 5] = [
     Orientation::East,
@@ -1035,9 +1046,16 @@ impl MoveGen {
         let pl_moves = self.pseudo_legal_moves(board);
 
         for pl_move in pl_moves.into_iter() {
-            if self.exposed_threats(board.own_king, &pl_move, &board) == 0 {
-                l_moves.push(pl_move);
+            if pl_move.piece == board::Piece::King {
+                if !self.threatened(pl_move.to, &ORIENTATIONS, &board) {
+                    l_moves.push(pl_move);
+                }
+            } else {
+                if self.exposed_threats(board.own_king, &pl_move, &board) == 0 {
+                    l_moves.push(pl_move);
+                }
             }
+
         }
 
         l_moves
