@@ -19,7 +19,7 @@ static ORIENTATIONS: [Orientation; 8] = [
     Orientation::West,
     Orientation::SouthWest,
     Orientation::South,
-    Orientation::SouthEast
+    Orientation::SouthEast,
 ];
 
 // subset of orientations a piece on the first rank can be threatened from
@@ -985,9 +985,9 @@ impl MoveGen {
     //     LEGAL MOVE GEN
     // ========================
 
-    // Identifies new threats sq may now be exposed to due to move. Returns threat bitboard
-    // Performs no checks for castling, legality of castling is delegated to primary move gen
-    fn exposed_threats(&self, sq: u8, m: &Move, board: &board::Board) -> u64 {
+    // Discover checks due to move (for general sq)
+    // Assumes castling was already verified to be legal
+    fn discover_checks(&self, sq: u8, m: &Move, board: &board::Board) -> u64 {
         match m.category {
             MoveCategory::KingsideCastle => return 0,
             MoveCategory::QueensideCastle => return 0,
@@ -995,48 +995,73 @@ impl MoveGen {
                 let mut threats: u64 = 0;
                 // check orientation exposed by movement of own pawn
                 match self.rel_orientation[(sq as usize) * 64 + (m.from as usize)] {
-                    Some(orientation) => threats |= self.sliding_threats(sq, &orientation, board),
+                    Some(orientation) => {
+                        threats |= self.discover_checks_in(sq, &orientation, board)
+                    }
                     None => (),
                 }
                 // check orientation exposed by now captured enemy pawn
                 match self.rel_orientation[(sq as usize) * 64 + (m.from as usize)] {
-                    Some(orientation) => threats |= self.sliding_threats(sq, &orientation, board),
+                    Some(orientation) => {
+                        threats |= self.discover_checks_in(sq, &orientation, board)
+                    }
                     None => (),
                 }
                 threats
             }
             _ => match self.rel_orientation[(sq as usize) * 64 + (m.from as usize)] {
-                Some(orientation) => self.sliding_threats(sq, &orientation, board),
+                Some(orientation) => self.discover_checks_in(sq, &orientation, board),
                 None => 0,
             },
         }
     }
 
-    // TODO: fails to identify threats from pawns
-    // Identifies threats sq is exposed to in dir orientation
-    fn sliding_threats(&self, sq: u8, orientation: &Orientation, board: &board::Board) -> u64 {
-        // enemy sliders are excluded from mask so occluded enemy sliders will be correctly counted
+    // Identifies discover checks in orientation (for general sq)
+    // Only treats sliders (no discover checks for pawns or knights)
+    fn discover_checks_in(&self, sq: u8, orientation: &Orientation, board: &board::Board) -> u64 {
+        // sliders
         let enemy_sliders = board.sliders(&orientation) & board.opp_pieces;
+        // enemy sliders are excluded from mask so occluded enemy sliders will be correctly counted
         let mask = board.empty() ^ enemy_sliders;
         let exposed_bb = self.fill(&orientation, 1 << sq, mask);
         exposed_bb & enemy_sliders
     }
 
     // Checks if sq is threatened by knights or by sliding pieces in list of orientations
+    // Orientations are relative to own piece (ie north for vertical slider threats for a piece on first rank)
+    // Doesn't handle en passant, otherwise works for general square
     fn threatened(&self, sq: u8, orientations: &[Orientation], board: &board::Board) -> bool {
         if self.knight_movement[sq as usize] & board.knights() & board.opp_pieces != 0 {
             return true;
         }
 
+        let pawns = board.pawns & board::CLEAR_FIRST_LAST_RANK;
         for orientation in orientations {
-            if self.sliding_threats(sq, orientation, board) != 0 {
+            // slider threats
+            if self.discover_checks_in(sq, orientation, board) != 0 {
                 return true;
+            }
+
+            // pawn threats
+            match orientation {
+                Orientation::NorthWest => {
+                    if self.north_west_captures(1 << sq, &board) & pawns != 0 {
+                        return true;
+                    }
+                }
+                Orientation::NorthEast => {
+                    if self.north_east_captures(1 << sq, &board) & pawns != 0 {
+                        return true;
+                    }
+                }
+                _ => (),
             }
         }
 
         false
     }
 
+    // TODO: handle moves where we start in check, I think need to do a full make move for those
     // TODO: small optimization in separately handling castling moves
     pub fn legal_moves(&self, board: &board::Board) -> Vec<Move> {
         let mut l_moves = Vec::new();
@@ -1049,11 +1074,10 @@ impl MoveGen {
                     l_moves.push(pl_move);
                 }
             } else {
-                if self.exposed_threats(board.own_king, &pl_move, &board) == 0 {
+                if self.discover_checks(board.own_king, &pl_move, &board) == 0 {
                     l_moves.push(pl_move);
                 }
             }
-
         }
 
         l_moves
