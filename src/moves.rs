@@ -985,9 +985,9 @@ impl MoveGen {
     //     LEGAL MOVE GEN
     // ========================
 
-    // Discover checks due to move (for general sq)
+    // Discover attacks due to move (for general sq)
     // Assumes castling was already verified to be legal
-    fn discover_checks(&self, sq: u8, m: &Move, board: &board::Board) -> u64 {
+    fn discover_attacks(&self, sq: u8, m: &Move, board: &board::Board) -> u64 {
         match m.category {
             MoveCategory::KingsideCastle => return 0,
             MoveCategory::QueensideCastle => return 0,
@@ -996,29 +996,29 @@ impl MoveGen {
                 // check orientation exposed by movement of own pawn
                 match self.rel_orientation[(sq as usize) * 64 + (m.from as usize)] {
                     Some(orientation) => {
-                        threats |= self.discover_checks_in(sq, &orientation, board)
+                        threats |= self.discover_attacks_in(sq, &orientation, board)
                     }
                     None => (),
                 }
                 // check orientation exposed by now captured enemy pawn
                 match self.rel_orientation[(sq as usize) * 64 + (m.from as usize)] {
                     Some(orientation) => {
-                        threats |= self.discover_checks_in(sq, &orientation, board)
+                        threats |= self.discover_attacks_in(sq, &orientation, board)
                     }
                     None => (),
                 }
                 threats
             }
             _ => match self.rel_orientation[(sq as usize) * 64 + (m.from as usize)] {
-                Some(orientation) => self.discover_checks_in(sq, &orientation, board),
+                Some(orientation) => self.discover_attacks_in(sq, &orientation, board),
                 None => 0,
             },
         }
     }
 
-    // Identifies discover checks in orientation (for general sq)
-    // Only treats sliders (no discover checks for pawns or knights)
-    fn discover_checks_in(&self, sq: u8, orientation: &Orientation, board: &board::Board) -> u64 {
+    // Identifies discover attacks in orientation (for general sq)
+    // Only treats sliders (no discover attacks for pawns or knights)
+    fn discover_attacks_in(&self, sq: u8, orientation: &Orientation, board: &board::Board) -> u64 {
         // sliders
         let enemy_sliders = board.sliders(&orientation) & board.opp_pieces;
         // enemy sliders are excluded from mask so occluded enemy sliders will be correctly counted
@@ -1038,7 +1038,7 @@ impl MoveGen {
         let pawns = board.pawns & board::CLEAR_FIRST_LAST_RANK;
         for orientation in orientations {
             // slider threats
-            if self.discover_checks_in(sq, orientation, board) != 0 {
+            if self.discover_attacks_in(sq, orientation, board) != 0 {
                 return true;
             }
 
@@ -1074,7 +1074,7 @@ impl MoveGen {
                     l_moves.push(pl_move);
                 }
             } else {
-                if self.discover_checks(board.own_king, &pl_move, &board) == 0 {
+                if self.discover_attacks(board.own_king, &pl_move, &board) == 0 {
                     l_moves.push(pl_move);
                 }
             }
