@@ -320,9 +320,7 @@ impl MoveGen {
         (flood >> 1) & self.clear_file[7] & board.opp_pieces
     }
 
-    // TODO: rename to fill
-    // Only propagates by one step so ie north west would give some pawn captures
-    pub fn sliding_moves(&self, orientation: &Orientation, sliders: u64, empty: u64) -> u64 {
+    pub fn fill(&self, orientation: &Orientation, sliders: u64, empty: u64) -> u64 {
         match orientation {
             Orientation::North => self.north_moves(sliders, empty),
             Orientation::NorthEast => self.north_east_moves(sliders, empty),
@@ -678,7 +676,7 @@ impl MoveGen {
         for orientation in Orientation::ortho() {
             let axis = orientation.axis();
 
-            let moves = self.sliding_moves(&orientation, pieces, empty);
+            let moves = self.fill(&orientation, pieces, empty);
             let captures = self.sliding_captures(&orientation, moves | pieces, board);
 
             let queens = board.queens() & board.own_pieces;
@@ -771,7 +769,7 @@ impl MoveGen {
         for orientation in Orientation::diag() {
             let axis = orientation.axis();
 
-            let moves = self.sliding_moves(&orientation, pieces, empty);
+            let moves = self.fill(&orientation, pieces, empty);
             let captures = self.sliding_captures(&orientation, moves | pieces, board);
 
             let queens = board.queens() & board.own_pieces;
@@ -1020,7 +1018,7 @@ impl MoveGen {
         // enemy sliders are excluded from mask so occluded enemy sliders will be correctly counted
         let enemy_sliders = board.sliders(&orientation) & board.opp_pieces;
         let mask = board.empty() ^ enemy_sliders;
-        let exposed_bb = self.sliding_moves(&orientation, 1 << sq, mask);
+        let exposed_bb = self.fill(&orientation, 1 << sq, mask);
         exposed_bb & enemy_sliders
     }
 
