@@ -65,6 +65,7 @@ pub static UNIVERSAL_SET: u64 = 18446744073709551615;
 /// 3: A B C D E F G H | 16 17 18 19 20 21 22 23
 /// 2: A B C D E F G H | 8  9  10 11 12 13 14 15
 /// 1: A B C D E F G H | 0  1  2  3  4  5  6  7
+
 pub fn square_index(rank_idx: u8, file_idx: u8) -> u8 {
     assert!((rank_idx < 8) & (file_idx < 8), "r {} f {}", rank_idx, file_idx);
 
@@ -506,10 +507,19 @@ pub struct UndoInfo {
     en_passant_state: u8,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(PartialEq, Copy, Clone, Debug)]
 pub enum Color {
     White,
     Black,
+}
+
+impl Color {
+    pub fn flip(&self) -> Self {
+        match self {
+            Color::White => Color::Black,
+            Color::Black => Color::White
+        }
+    }
 }
 
 #[derive(PartialEq, Copy, Clone, Debug)]
@@ -647,7 +657,6 @@ mod tests {
             assert!(b.pawns & (1 << idx + 56) == 0, "idx: {}, b:\n{:#?}", idx, b);
             assert_eq!(moves::pop_count(b.pawns & FIRST_RANK), 0, "idx: {}, b:\n{:#?}", idx, b);
             assert_eq!(moves::pop_count(b.pawns & last_rank), 0, "idx: {}, b:\n{:#?}", idx, b);
-
             b.unmake_move(&m3, &u3);
             // EP bit should again be set for white, whites turn
             println!("\n{:#?}", b);
