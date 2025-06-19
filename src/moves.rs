@@ -381,7 +381,7 @@ impl MoveGen {
                 capture: None,
                 category: MoveCategory::Normal,
                 check: false,
-                double_check: false
+                double_check: false,
             })
         }
 
@@ -398,7 +398,7 @@ impl MoveGen {
                     capture: None,
                     category: MoveCategory::Promotion,
                     check: false,
-                    double_check: false
+                    double_check: false,
                 })
             }
         }
@@ -415,7 +415,7 @@ impl MoveGen {
                 capture: None,
                 category: MoveCategory::DoublePawnPush,
                 check: false,
-                double_check: false
+                double_check: false,
             })
         }
 
@@ -463,7 +463,7 @@ impl MoveGen {
                 capture: Some(board.identify(*to_idx)),
                 category: MoveCategory::Normal,
                 check: false,
-                double_check: false
+                double_check: false,
             })
         }
 
@@ -477,7 +477,7 @@ impl MoveGen {
                     capture: Some(board.identify(*to_idx)),
                     category: MoveCategory::Promotion,
                     check: false,
-                    double_check: false
+                    double_check: false,
                 })
             }
         }
@@ -491,7 +491,7 @@ impl MoveGen {
                 capture: Some(board.identify(*to_idx)),
                 category: MoveCategory::Normal,
                 check: false,
-                double_check: false
+                double_check: false,
             })
         }
 
@@ -505,7 +505,7 @@ impl MoveGen {
                     capture: Some(board.identify(*to_idx)),
                     category: MoveCategory::Promotion,
                     check: false,
-                    double_check: false
+                    double_check: false,
                 })
             }
         }
@@ -523,7 +523,7 @@ impl MoveGen {
                 capture: Some(board::Piece::Pawn),
                 category: MoveCategory::EnPassant,
                 check: false,
-                double_check: false
+                double_check: false,
             })
         }
 
@@ -538,7 +538,7 @@ impl MoveGen {
                 capture: Some(board::Piece::Pawn),
                 category: MoveCategory::EnPassant,
                 check: false,
-                double_check: false
+                double_check: false,
             })
         }
 
@@ -569,7 +569,7 @@ impl MoveGen {
                     capture: None,
                     category: MoveCategory::Normal,
                     check: false,
-                    double_check: false
+                    double_check: false,
                 })
             }
 
@@ -582,7 +582,7 @@ impl MoveGen {
                     capture: Some(board.identify(*to_idx)),
                     category: MoveCategory::Normal,
                     check: false,
-                    double_check: false
+                    double_check: false,
                 })
             }
         }
@@ -613,7 +613,7 @@ impl MoveGen {
                 capture: None,
                 category: MoveCategory::Normal,
                 check: false,
-                double_check: false
+                double_check: false,
             })
         }
 
@@ -626,7 +626,7 @@ impl MoveGen {
                 capture: Some(board.identify(*to_idx)),
                 category: MoveCategory::Normal,
                 check: false,
-                double_check: false
+                double_check: false,
             })
         }
 
@@ -636,12 +636,10 @@ impl MoveGen {
     // Pseudo-legal castling move generation
     // Returned moves describe rook moves
     pub fn castling_moves(&self, board: &board::Board) -> Vec<Move> {
-        let mut move_list = Vec::new();
+        debug_assert!(!board.own_king_checked());
+        debug_assert!(!board.own_king_double_checked());
 
-        let king_threatened = self.threatened(4, &FIRST_RANK_THREAT_ORIENTATIONS, board);
-        if king_threatened {
-            return move_list;
-        }
+        let mut move_list = Vec::new();
 
         let occupied = board.own_pieces | board.opp_pieces;
 
@@ -660,7 +658,7 @@ impl MoveGen {
                     capture: None,
                     category: MoveCategory::KingsideCastle,
                     check: false,
-                    double_check: false
+                    double_check: false,
                 })
             }
         }
@@ -679,7 +677,7 @@ impl MoveGen {
                     capture: None,
                     category: MoveCategory::QueensideCastle,
                     check: false,
-                    double_check: false
+                    double_check: false,
                 })
             }
         }
@@ -736,7 +734,7 @@ impl MoveGen {
                     capture: None,
                     category: MoveCategory::Normal,
                     check: false,
-                    double_check: false
+                    double_check: false,
                 })
             }
 
@@ -752,7 +750,7 @@ impl MoveGen {
                     capture: Some(board.identify(*to_idx)),
                     category: MoveCategory::Normal,
                     check: false,
-                    double_check: false
+                    double_check: false,
                 })
             }
 
@@ -768,7 +766,7 @@ impl MoveGen {
                     capture: None,
                     category: MoveCategory::Normal,
                     check: false,
-                    double_check: false
+                    double_check: false,
                 })
             }
 
@@ -784,7 +782,7 @@ impl MoveGen {
                     capture: Some(board.identify(*to_idx)),
                     category: MoveCategory::Normal,
                     check: false,
-                    double_check: false
+                    double_check: false,
                 })
             }
         }
@@ -837,7 +835,7 @@ impl MoveGen {
                     capture: None,
                     category: MoveCategory::Normal,
                     check: false,
-                    double_check: false
+                    double_check: false,
                 })
             }
 
@@ -853,7 +851,7 @@ impl MoveGen {
                     capture: Some(board.identify(*to_idx)),
                     category: MoveCategory::Normal,
                     check: false,
-                    double_check: false
+                    double_check: false,
                 })
             }
 
@@ -869,7 +867,7 @@ impl MoveGen {
                     capture: None,
                     category: MoveCategory::Normal,
                     check: false,
-                    double_check: false
+                    double_check: false,
                 })
             }
 
@@ -885,7 +883,7 @@ impl MoveGen {
                     capture: Some(board.identify(*to_idx)),
                     category: MoveCategory::Normal,
                     check: false,
-                    double_check: false
+                    double_check: false,
                 })
             }
         }
@@ -1031,100 +1029,156 @@ impl MoveGen {
     //     LEGAL MOVE GEN
     // ========================
 
-    // Discover attacks due to move (for general sq)
-    // Assumes castling was already verified to be legal
-    fn discover_attacks(&self, sq: u8, m: &Move, board: &board::Board) -> u64 {
-        match m.category {
-            MoveCategory::KingsideCastle => return 0,
-            MoveCategory::QueensideCastle => return 0,
-            MoveCategory::EnPassant => {
-                let mut threats: u64 = 0;
-                // check orientation exposed by movement of own pawn
-                match self.rel_orientation[(sq as usize) * 64 + (m.from as usize)] {
-                    Some(orientation) => {
-                        threats |= self.discover_attacks_in(sq, &orientation, board)
-                    }
-                    None => (),
-                }
-                // check orientation exposed by now captured enemy pawn
-                match self.rel_orientation[(sq as usize) * 64 + (m.from as usize)] {
-                    Some(orientation) => {
-                        threats |= self.discover_attacks_in(sq, &orientation, board)
-                    }
-                    None => (),
-                }
-                threats
-            }
-            _ => match self.rel_orientation[(sq as usize) * 64 + (m.from as usize)] {
-                Some(orientation) => self.discover_attacks_in(sq, &orientation, board),
-                None => 0,
-            },
-        }
+    // Explicitly checks if own king is currently in check
+    fn in_check(&self, board: &board::Board) -> bool {
+        self.threatened(board.own_king(), &ORIENTATIONS, board)
     }
 
-    // Identifies discover attacks in orientation (for general sq)
-    // Only treats sliders (no discover attacks for pawns or knights)
-    fn discover_attacks_in(&self, sq: u8, orientation: &Orientation, board: &board::Board) -> u64 {
-        // sliders
-        let enemy_sliders = board.sliders(&orientation) & board.opp_pieces;
-        // enemy sliders are excluded from mask so occluded enemy sliders will be correctly counted
-        let mask = board.empty() ^ enemy_sliders;
-        let exposed_bb = self.fill(&orientation, 1 << sq, mask);
-        exposed_bb & enemy_sliders
-    }
-
-    // Checks if sq is threatened by knights or by sliding pieces in list of orientations
-    // Orientations are relative to own piece (ie north for vertical slider threats for a piece on first rank)
-    // Doesn't handle en passant, otherwise works for general square
+    // Checks if sq is threatened by enemies given current state of board
+    // Orientations are relative to sq (ie north for vertical slider threats for a piece on the first rank)
     fn threatened(&self, sq: u8, orientations: &[Orientation], board: &board::Board) -> bool {
         if self.knight_movement[sq as usize] & board.knights() & board.opp_pieces != 0 {
             return true;
         }
 
-        let pawns = board.pawns & board::CLEAR_FIRST_LAST_RANK;
         for orientation in orientations {
-            // slider threats
-            if self.discover_attacks_in(sq, orientation, board) != 0 {
+            if self.threatened_in(sq, orientation, board) {
                 return true;
-            }
-
-            // pawn threats
-            match orientation {
-                Orientation::NorthWest => {
-                    if self.north_west_captures(1 << sq, &board) & pawns != 0 {
-                        return true;
-                    }
-                }
-                Orientation::NorthEast => {
-                    if self.north_east_captures(1 << sq, &board) & pawns != 0 {
-                        return true;
-                    }
-                }
-                _ => (),
             }
         }
 
         false
     }
 
+    // Checks if sq is threatened by enemy sliders or pawns in given direction
+    // Orientations are relative to sq (ie north for vertical slider threats for a piece on the first rank)
+    fn threatened_in(&self, sq: u8, orientation: &Orientation, board: &board::Board) -> bool {
+        // pawn threats
+        match orientation {
+            Orientation::NorthWest => {
+                let pawns = board.pawns & board::CLEAR_FIRST_LAST_RANK & board.opp_pieces;
+                if self.north_west_captures(1 << sq, &board) & pawns != 0 {
+                    return true;
+                }
+            }
+            Orientation::NorthEast => {
+                let pawns = board.pawns & board::CLEAR_FIRST_LAST_RANK & board.opp_pieces;
+                if self.north_east_captures(1 << sq, &board) & pawns != 0 {
+                    return true;
+                }
+            }
+            _ => (),
+        }
+
+
+        // slider threats
+        let enemy_sliders = board.sliders(&orientation) & board.opp_pieces;
+        // excluding enemy sliders from mask saves a call to sliding_captures and a few instructions (?)
+        let mask = board.empty() ^ enemy_sliders;
+        (self.fill(&orientation, 1 << sq, mask) & enemy_sliders) != 0
+    }
+
+    // Returns true if there are discover attacks on opp due to own move (for general sq)
+    // A move directly along the ray towards sq where moving piece threatens sq is not considered a discover attack
+    // i.e, enemy king on e8, two own rooks an e1 e2, move e2e4 is not a discover attack on e8
+    fn is_discover_attack(&self, sq: u8, m: &Move, board: &board::Board) -> bool {
+        match m.category {
+            MoveCategory::KingsideCastle => return false,
+            MoveCategory::QueensideCastle => return false,
+            MoveCategory::EnPassant => {
+                let mut ep_threat = false;
+                // check orientation exposed by movement of own pawn
+                let rel_orientation = self.rel_orientation[(sq as usize) * 64 + (m.from as usize)];
+                if let Some(orientation) = rel_orientation {
+                    ep_threat |= self.is_discover_attack_in(
+                        sq,
+                        (1 << m.from) | (1 << m.to),
+                        (1 << (m.to - 8)),
+                        &orientation,
+                        board,
+                    )
+                }
+
+                // check orientation exposed by now captured enemy pawn
+                let rel_orientation =
+                    self.rel_orientation[(sq as usize) * 64 + ((m.to - 8) as usize)];
+                if let Some(orientation) = rel_orientation {
+                    ep_threat |= self.is_discover_attack_in(
+                        sq,
+                        (1 << m.from) | (1 << m.to),
+                        !(1 << (m.to - 8)),
+                        &orientation,
+                        board,
+                    )
+                }
+
+                return ep_threat;
+            }
+            _ => match m.capture {
+                // capture move case
+                Some(_) => {
+                    let rel_orientation =
+                        self.rel_orientation[(sq as usize) * 64 + (m.from as usize)];
+                    if let Some(orientation) = rel_orientation {
+                        return self.is_discover_attack_in(
+                            sq,
+                            (1 << m.from) | (1 << m.to),
+                            (1 << m.to),
+                            &orientation,
+                            board,
+                        );
+                    }
+                }
+                // normal move case
+                None => {
+                    let rel_orientation =
+                        self.rel_orientation[(sq as usize) * 64 + (m.from as usize)];
+                    if let Some(orientation) = rel_orientation {
+                        return self.is_discover_attack_in(
+                            sq,
+                            (1 << m.from) | (1 << m.to),
+                            0,
+                            &orientation,
+                            board,
+                        );
+                    }
+                }
+            },
+        }
+        false
+    }
+
+    // Checks if sq is exposed to a discover attack from own pieces in given direction
+    // Orientations are relative to own piece (ie north for vertical slider threats for a piece on first rank)
+    fn is_discover_attack_in(
+        &self,
+        sq: u8,
+        own_move: u64,
+        capture: u64,
+        orientation: &Orientation,
+        board: &board::Board,
+    ) -> bool {
+        // mask off both from and to bits of own_move
+        // even if moving piece is a slider, threats from moving piece are not counted as discover attacks
+        let own_sliders = board.sliders(&orientation) & board.own_pieces & !(own_move);
+        // excluding own sliders from mask saves a call to sliding_captures and a few instructions (?)
+        let mask = board.empty() ^ own_move ^ own_sliders ^ capture;
+        (self.fill(&orientation, 1 << sq, mask) & own_sliders) != 0
+    }
+
     // TODO: handle moves where we start in check, I think need to do a full make move for those
     // TODO: small optimization in separately handling castling moves
+    // TODO: complete rewrite
     pub fn legal_moves(&self, board: &board::Board) -> Vec<Move> {
         let mut l_moves = Vec::new();
 
         let pl_moves = self.pseudo_legal_moves(board);
 
-        for pl_move in pl_moves.into_iter() {
-            if pl_move.piece == board::Piece::King {
-                if !self.threatened(pl_move.to, &ORIENTATIONS, &board) {
-                    l_moves.push(pl_move);
-                }
-            } else {
-                if self.discover_attacks(board.own_king(), &pl_move, &board) == 0 {
-                    l_moves.push(pl_move);
-                }
-            }
-        }
+        // TODO: need special special handling for EP double checks
+        // can have it such that EP capturing pawn does not check king but causes double check anyways
+
+        // TODO: king-king checks when castling
+        // TODO: handle rook checks when castling, no discover attacks I think
 
         l_moves
     }
@@ -1411,7 +1465,6 @@ mod tests {
 
         b
     }
-
 
     // TODO: could probably avoid the duplicated logic by turning the other one into an iterator?
     // Returns:
@@ -1887,11 +1940,7 @@ mod tests {
         for file_idx in 0..8 {
             for rank_idx in 1..8 {
                 let mut b = board::Board::empty_board();
-                b.set_piece(
-                    true,
-                    board::square_index(0, file_idx),
-                    board::Piece::Queen,
-                );
+                b.set_piece(true, board::square_index(0, file_idx), board::Piece::Queen);
 
                 b.set_piece(
                     true,
@@ -1922,11 +1971,7 @@ mod tests {
             for rank_idx_1 in 1..8 {
                 for rank_idx_2 in (rank_idx_1 + 1)..8 {
                     let mut b = board::Board::empty_board();
-                    b.set_piece(
-                        true,
-                        board::square_index(0, file_idx),
-                        board::Piece::Queen,
-                    );
+                    b.set_piece(true, board::square_index(0, file_idx), board::Piece::Queen);
 
                     b.set_piece(
                         true,
@@ -1954,6 +1999,145 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn threatened_by_knight() {
+        let mg = MoveGen::new();
+        let mut b = board::Board::empty_board();
+
+        b.set_piece(false, 17, board::Piece::Knight);
+
+        assert!(mg.threatened(0, &ORIENTATIONS, &b));
+    }
+
+    #[test]
+    fn threatened_in() {
+        let mg = MoveGen::new();
+        let mut b = board::Board::empty_board();
+
+        b.set_piece(false, 16, board::Piece::Queen);
+
+        assert!(mg.threatened_in(0, &Orientation::North, &b));
+    }
+
+    #[test]
+    fn threatened_in_occluded() {
+        let mg = MoveGen::new();
+        let mut b = board::Board::empty_board();
+
+        b.set_piece(false, 16, board::Piece::Queen);
+        b.set_piece(true, 16, board::Piece::Pawn);
+
+        assert!(mg.threatened_in(0, &Orientation::North, &b));
+    }
+
+    #[test]
+    fn threatened_in_pawn() {
+        let mg = MoveGen::new();
+        let mut b = board::Board::empty_board();
+
+        b.set_piece(false, 8, board::Piece::Pawn);
+        b.set_piece(false, 10, board::Piece::Pawn);
+
+        assert!(mg.threatened_in(1, &Orientation::NorthEast, &b), "{:#?}", b);
+        assert!(mg.threatened_in(1, &Orientation::NorthWest, &b));
+    }
+
+    #[test]
+    fn threatened_in_not_rel_ray() {
+        let mg = MoveGen::new();
+        let mut b = board::Board::empty_board();
+
+        b.set_piece(false, 17, board::Piece::Queen);
+
+        assert!(!mg.threatened_in(0, &Orientation::North, &b));
+    }
+
+    // TODO: discover attack tests cases:
+    // - normal move along orientation axis
+    // - normal move not along orientation axis
+    //  various occluded normal moves
+    // - captures ''
+    // whole bunch of EP cases
+    // at least one where the discover is horizontal
+
+    #[test]
+    fn discover_attack_normal_move_off_axis() {
+        let mg = MoveGen::new();
+
+        let mut b = board::Board::empty_board();
+        b.set_piece(true, 4, board::Piece::Queen);
+        b.set_piece(true, 12, board::Piece::Rook);
+
+        let m = Move {
+            from: 12,
+            to: 13,
+            piece: board::Piece::Rook,
+            color: board::Color::White,
+            capture: None,
+            category: MoveCategory::Normal,
+            check: false,
+            double_check: false
+        };
+
+        assert_eq!(mg.is_discover_attack(36, &m, &b), true);
+
+        let mut b = board::Board::empty_board();
+        b.set_piece(true, 2, board::Piece::Queen);
+        b.set_piece(true, 12, board::Piece::Rook);
+
+        let m = Move {
+            from: 12,
+            to: 13,
+            piece: board::Piece::Rook,
+            color: board::Color::White,
+            capture: None,
+            category: MoveCategory::Normal,
+            check: false,
+            double_check: false
+        };
+
+        assert_eq!(mg.is_discover_attack(29, &m, &b), true);
+    }
+
+    #[test]
+    fn discover_attack_normal_move_on_axis() {
+        let mg = MoveGen::new();
+
+        let mut b = board::Board::empty_board();
+        b.set_piece(true, 4, board::Piece::Queen);
+        b.set_piece(true, 12, board::Piece::Rook);
+
+        let m = Move {
+            from: 12,
+            to: 20,
+            piece: board::Piece::Rook,
+            color: board::Color::White,
+            capture: None,
+            category: MoveCategory::Normal,
+            check: false,
+            double_check: false
+        };
+
+        assert_eq!(mg.is_discover_attack(36, &m, &b), false);
+
+        let mut b = board::Board::empty_board();
+        b.set_piece(true, 3, board::Piece::Queen);
+        b.set_piece(true, 4, board::Piece::Rook);
+
+        let m = Move {
+            from: 4,
+            to: 6,
+            piece: board::Piece::Rook,
+            color: board::Color::White,
+            category: MoveCategory::Normal,
+            capture: None,
+            check: false,
+            double_check: false
+        };
+
+        assert_eq!(mg.is_discover_attack(7, &m, &b), false);
     }
 
     #[test]
