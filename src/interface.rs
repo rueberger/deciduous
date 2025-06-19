@@ -35,6 +35,7 @@ pub fn read_moves(b: &board::Board) -> Vec<moves::Move> {
         color = color.flip();
     }
 
+
     move_list
 }
 
@@ -73,6 +74,7 @@ pub fn parse_coord_str(coord_str: &str) -> u8 {
 
 
 
+// TODO: handle checks
 // Create a move given from and to square given current state of board
 // Doesn't validate move legality, but panics if you try to move an empty square
 // Does not read color from board to facilitate use independent of make_move
@@ -99,7 +101,9 @@ fn create_move(b: &board::Board, color: board::Color, mut from: u8, mut to: u8) 
         piece: b.identify(from),
         color,
         capture,
-        category: identify_move_category(from, to)
+        category: identify_move_category(from, to),
+        check: false,
+        double_check: false
     }
 }
 

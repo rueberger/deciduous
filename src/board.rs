@@ -43,6 +43,10 @@ static ANTI_DIAGONAL: u64 = 0x0102040810204080;
 static EMPTY_SET: u64 = 0;
 // The universal set with all bits set
 pub static UNIVERSAL_SET: u64 = 18446744073709551615;
+// Masks for unpacking king state
+static KING_STATE_POS_MASK: u8 = 0b00111111;
+static KING_STATE_CHECK_MASK: u8 = 0b01000000;
+static KING_STATE_DOUBLE_CHECK_MASK: u8 = 0b10000000;
 
 /// Square ordering is Little-Endian Rank-File
 ///
@@ -67,7 +71,12 @@ pub static UNIVERSAL_SET: u64 = 18446744073709551615;
 /// 1: A B C D E F G H | 0  1  2  3  4  5  6  7
 
 pub fn square_index(rank_idx: u8, file_idx: u8) -> u8 {
-    assert!((rank_idx < 8) & (file_idx < 8), "r {} f {}", rank_idx, file_idx);
+    assert!(
+        (rank_idx < 8) & (file_idx < 8),
+        "r {} f {}",
+        rank_idx,
+        file_idx
+    );
 
     rank_idx * 8 + file_idx
 }
@@ -126,9 +135,16 @@ pub struct Board {
     pub ortho_sliders: u64,
     pub diag_sliders: u64,
     pub pawns: u64,
-    // king positions are represented by square index
-    pub own_king: u8,
-    pub opp_king: u8,
+    // 6 bits for square index, two bits for check state
+    // convention for 7th and 8th bits:
+    // | 7 | 8 |
+    // |---|---|
+    // | 1 | 0 | check
+    // | 0 | 1 | double check
+    // | 1 | 1 | knight single check
+    // | 0 | 0 | not in check
+    own_king_state: u8,
+    opp_king_state: u8,
     pub own_castling_rights: CastlingRights,
     pub opp_castling_rights: CastlingRights,
     pub flipped: bool,
@@ -142,8 +158,8 @@ impl Board {
             ortho_sliders: ROOKS | QUEENS,
             diag_sliders: BISHOPS | QUEENS,
             pawns: PAWNS,
-            own_king: square_index(0, 4) as u8,
-            opp_king: square_index(7, 4) as u8,
+            own_king_state: square_index(0, 4) as u8,
+            opp_king_state: square_index(7, 4) as u8,
             own_castling_rights: CastlingRights {
                 kingside: true,
                 queenside: true,
@@ -157,7 +173,7 @@ impl Board {
         board
     }
 
-    // TODO: add tests
+    // TODO: add tests, especially for king state
     pub fn color_flip(&mut self) {
         self.own_pieces = self.own_pieces.swap_bytes();
         self.opp_pieces = self.opp_pieces.swap_bytes();
@@ -165,10 +181,13 @@ impl Board {
         self.ortho_sliders = self.ortho_sliders.swap_bytes();
         self.diag_sliders = self.diag_sliders.swap_bytes();
         self.pawns = self.pawns.swap_bytes();
-        // TODO: lc0 uses a BoardSquare class for this. should I?
-        self.own_king = flip_square_index(self.own_king);
-        self.opp_king = flip_square_index(self.opp_king);
-        mem::swap(&mut self.own_king, &mut self.opp_king);
+        let own_king_pos = flip_square_index(self.own_king());
+        let opp_king_pos = flip_square_index(self.opp_king());
+        self.own_king_state &= !KING_STATE_POS_MASK;
+        self.own_king_state |= own_king_pos;
+        self.opp_king_state &= !KING_STATE_POS_MASK;
+        self.opp_king_state |= opp_king_pos;
+        mem::swap(&mut self.own_king_state, &mut self.opp_king_state);
         mem::swap(&mut self.own_castling_rights, &mut self.opp_castling_rights);
         self.flipped = !self.flipped;
     }
@@ -199,10 +218,33 @@ impl Board {
     }
 
     pub fn knights(&self) -> u64 {
-        let kings = ((1 as u64) << self.own_king) | ((1 as u64) << self.opp_king);
+        let kings = ((1 as u64) << self.own_king()) | ((1 as u64) << self.opp_king());
         let pawns = self.pawns & CLEAR_FIRST_LAST_RANK;
         let other_pieces = self.ortho_sliders | self.diag_sliders | pawns | kings;
         (self.own_pieces | self.opp_pieces) & !other_pieces
+    }
+
+    // own king position
+    pub fn own_king(&self) -> u8 {
+        self.own_king_state & KING_STATE_POS_MASK
+    }
+
+    // opp king position
+    pub fn opp_king(&self) -> u8 {
+        self.opp_king_state & KING_STATE_POS_MASK
+    }
+
+    pub fn own_king_checked(&self) -> bool {
+        self.own_king_state & KING_STATE_CHECK_MASK != 0
+    }
+
+    pub fn own_king_double_checked(&self) -> bool {
+        self.own_king_state & KING_STATE_DOUBLE_CHECK_MASK != 0 && !self.own_king_state & KING_STATE_CHECK_MASK != 0
+    }
+
+    pub fn own_king_knight_checked(&self) -> bool {
+        self.own_king_state & KING_STATE_CHECK_MASK != 0
+            && self.own_king_state & KING_STATE_DOUBLE_CHECK_MASK != 0
     }
 
     pub fn color(&self) -> Color {
@@ -215,7 +257,7 @@ impl Board {
     /// Identify the type of the piece at piece_idx
     pub fn identify(&self, piece_idx: u8) -> Piece {
         let piece: u64 = 1 << piece_idx;
-        let kings: u64 = (1 << self.own_king) | (1 << self.opp_king);
+        let kings: u64 = (1 << self.own_king()) | (1 << self.opp_king());
 
         if (self.pawns & CLEAR_FIRST_LAST_RANK & piece) != 0 {
             return Piece::Pawn;
@@ -298,17 +340,25 @@ impl Board {
         }
     }
 
-    /// Make move. Mutates state of self.
-    /// Does not check move legality
-    /// Returns undo information
     pub fn make_move(&mut self, m: &moves::Move) -> UndoInfo {
         let undo = UndoInfo {
             castling_rights: self.own_castling_rights,
             // Casting behavior keeps the least significant bits
             en_passant_state: self.pawns as u8,
+            check: self.own_king_state & KING_STATE_CHECK_MASK != 0,
+            double_check: self.own_king_state & KING_STATE_DOUBLE_CHECK_MASK != 0,
         };
 
-        self.move_involution(m);
+        // Clear own check state. Checkmate is detected by counting number of legal moves.
+        self.own_king_state &= KING_STATE_POS_MASK;
+
+        // Set opp check state
+        if m.check {
+            self.opp_king_state |= KING_STATE_CHECK_MASK;
+        }
+        if m.double_check {
+            self.opp_king_state |= KING_STATE_DOUBLE_CHECK_MASK
+        }
 
         // Clear en passant state from previous turn
         self.pawns &= CLEAR_FIRST_RANK;
@@ -318,23 +368,26 @@ impl Board {
             self.pawns |= 1 << file_index(m.from);
         }
 
-        // Castling logic
+        // Castling, king movement logic
         match m.category {
             moves::MoveCategory::KingsideCastle => {
                 self.own_castling_rights.king_moved();
-                self.own_king = 6;
+                self.own_king_state &= !KING_STATE_POS_MASK;
+                self.own_king_state |= 6;
                 self.own_pieces ^= (1 << 4) | (1 << 6);
             }
             moves::MoveCategory::QueensideCastle => {
                 self.own_castling_rights.king_moved();
-                self.own_king = 2;
+                self.own_king_state &= !KING_STATE_POS_MASK;
+                self.own_king_state |= 2;
                 self.own_pieces ^= (1 << 4) | (1 << 2);
             }
             _ => {
                 match m.piece {
                     // TODO: use bitboard for king rep so I can use an involution?
                     Piece::King => {
-                        self.own_king = m.to;
+                        self.own_king_state &= !KING_STATE_POS_MASK;
+                        self.own_king_state |= m.to;
                         self.own_castling_rights.king_moved();
                     }
                     Piece::Rook => {
@@ -348,6 +401,7 @@ impl Board {
                 }
 
                 if m.capture == Some(Piece::Rook) {
+                    // TODO: can replace these conditions with logical or ops
                     if m.to == 56 {
                         self.opp_castling_rights.queenside_moved();
                     } else if m.to == 63 {
@@ -357,32 +411,33 @@ impl Board {
             }
         }
 
+        self.move_involution(m);
         self.color_flip();
 
         undo
     }
 
-    // TODO: should consume undo info?
-    /// unmake move. Mutates state of self.
-    /// Does not check move legality
     pub fn unmake_move(&mut self, m: &moves::Move, undo: &UndoInfo) {
         self.color_flip();
         self.move_involution(m);
 
         match m.category {
             moves::MoveCategory::KingsideCastle => {
-                self.own_king = 4;
+                self.own_king_state &= !KING_STATE_POS_MASK;
+                self.own_king_state |= 4;
                 self.own_pieces ^= (1 << 4) | (1 << 6);
             }
             moves::MoveCategory::QueensideCastle => {
-                self.own_king = 4;
+                self.own_king_state &= !KING_STATE_POS_MASK;
+                self.own_king_state |= 4;
                 self.own_pieces ^= (1 << 4) | (1 << 2);
             }
             _ => {
                 match m.piece {
                     // TODO: use bitboard for king rep so I can use an involution?
                     Piece::King => {
-                        self.own_king = m.from;
+                        self.own_king_state &= !KING_STATE_POS_MASK;
+                        self.own_king_state = m.from;
                     }
                     _ => (),
                 }
@@ -393,6 +448,56 @@ impl Board {
 
         self.pawns &= CLEAR_FIRST_RANK;
         self.pawns |= undo.en_passant_state as u64;
+
+        // clear opp check state
+        self.opp_king_state &= KING_STATE_POS_MASK;
+        // pop own check state
+        // TODO: benchmark conditional vs multiplication by check flags
+        if undo.check {
+            self.own_king_state |= KING_STATE_CHECK_MASK;
+        }
+        if undo.double_check {
+            self.own_king_state |= KING_STATE_DOUBLE_CHECK_MASK
+        }
+    }
+
+    pub fn set_piece(&mut self, own: bool, sq: u8, piece: Piece) {
+        match piece {
+            Piece::Bishop => self.diag_sliders |= 1 << sq,
+            Piece::Rook => self.ortho_sliders |= 1 << sq,
+            Piece::Queen => {
+                self.diag_sliders |= 1 << sq;
+                self.ortho_sliders |= 1 << sq
+            }
+            Piece::Pawn => self.pawns |= 1 << sq,
+            Piece::Knight => (),
+            Piece::King => match own {
+                true => {
+                    self.own_king_state &= !KING_STATE_POS_MASK;
+                    self.own_king_state |= sq;
+                }
+                false => {
+                    self.opp_king_state &= !KING_STATE_POS_MASK;
+                    self.opp_king_state |= sq;
+                }
+            },
+        }
+        match own {
+            true => self.own_pieces |= 1 << sq,
+            false => self.opp_pieces |= 1 << sq,
+        }
+    }
+
+    pub fn empty_board() -> Board{
+        let mut b = Board::new();
+        b.own_pieces = 0;
+        b.opp_pieces = 0;
+        b.ortho_sliders = 0;
+        b.diag_sliders = 0;
+        b.pawns = 0;
+        b.own_king_state = 0;
+        b.opp_king_state = 0;
+        b
     }
 
     fn format_board(&self) -> String {
@@ -503,8 +608,10 @@ impl CastlingRights {
 
 #[derive(Debug, Clone)]
 pub struct UndoInfo {
-    pub castling_rights: CastlingRights,
+    castling_rights: CastlingRights,
     en_passant_state: u8,
+    check: bool,
+    double_check: bool,
 }
 
 #[derive(PartialEq, Copy, Clone, Debug)]
@@ -517,7 +624,7 @@ impl Color {
     pub fn flip(&self) -> Self {
         match self {
             Color::White => Color::Black,
-            Color::Black => Color::White
+            Color::Black => Color::White,
         }
     }
 }
@@ -560,6 +667,172 @@ mod tests {
     }
 
     #[test]
+    fn make_sets_check_bit() {
+        let mut b = Board::new();
+        let m = moves::Move {
+            from: 8,
+            to: 24,
+            piece: Piece::Pawn,
+            color: Color::White,
+            capture: None,
+            category: moves::MoveCategory::Normal,
+            check: true,
+            double_check: false
+        };
+
+        let _u = b.make_move(&m);
+
+        assert_eq!(b.own_king_checked(), true);
+        assert_eq!(b.own_king_double_checked(), false);
+        assert_eq!(b.own_king_knight_checked(), false);
+    }
+
+    #[test]
+    fn make_sets_double_check_bit() {
+        let mut b = Board::new();
+        let m = moves::Move {
+            from: 8,
+            to: 24,
+            piece: Piece::Pawn,
+            color: Color::White,
+            capture: None,
+            category: moves::MoveCategory::Normal,
+            check: false,
+            double_check: true
+        };
+
+        let _u = b.make_move(&m);
+
+        assert_eq!(b.own_king_checked(), false);
+        assert_eq!(b.own_king_double_checked(), true);
+        assert_eq!(b.own_king_knight_checked(), false);
+    }
+
+    #[test]
+    fn make_sets_knight_check_bit() {
+        let mut b = Board::new();
+        let m = moves::Move {
+            from: 8,
+            to: 24,
+            piece: Piece::Pawn,
+            color: Color::White,
+            capture: None,
+            category: moves::MoveCategory::Normal,
+            check: true,
+            double_check: true
+        };
+
+        let _u = b.make_move(&m);
+
+        assert_eq!(b.own_king_checked(), true);
+        assert_eq!(b.own_king_double_checked(), false);
+        assert_eq!(b.own_king_knight_checked(), true);
+    }
+
+    #[test]
+    fn king_state_bitpacking() {
+        for sq in 0..64 {
+            let mut b = Board::empty_board();
+
+            let m = moves::Move {
+                from: 8,
+                to: 24,
+                piece: Piece::Pawn,
+                color: Color::White,
+                capture: None,
+                category: moves::MoveCategory::Normal,
+                check: false,
+                double_check: false
+            };
+
+            let _u = b.make_move(&m);
+
+            b.set_piece(true, sq, Piece::King);
+
+            assert_eq!(b.own_king_checked(), false);
+            assert_eq!(b.own_king_double_checked(), false);
+            assert_eq!(b.own_king(), sq, "king_state {:08b}", b.own_king_state);
+
+            let mut b = Board::empty_board();
+
+            let m = moves::Move {
+                from: 8,
+                to: 24,
+                piece: Piece::Pawn,
+                color: Color::White,
+                capture: None,
+                category: moves::MoveCategory::Normal,
+                check: true,
+                double_check: false
+            };
+
+            let _u = b.make_move(&m);
+
+            b.set_piece(true, sq, Piece::King);
+
+            assert_eq!(b.own_king_checked(), true);
+            assert_eq!(b.own_king_double_checked(), false);
+            assert_eq!(b.own_king(), sq, "king_state {:08b}", b.own_king_state);
+        }
+    }
+
+    #[test]
+    fn make_unmake_check_state() {
+        let mut b = Board::empty_board();
+
+        assert_eq!(b.own_king_state, 0);
+        assert_eq!(b.opp_king_state, 0);
+
+        let m1 = moves::Move {
+            from: 8,
+            to: 24,
+            piece: Piece::Pawn,
+            color: Color::White,
+            capture: None,
+            category: moves::MoveCategory::Normal,
+            check: true,
+            double_check: true
+        };
+
+        let u1 = b.make_move(&m1);
+
+        assert_eq!(b.own_king_checked(), true);
+        assert_eq!(b.own_king_double_checked(), false);
+        assert_eq!(b.own_king_knight_checked(), true);
+        assert_eq!(b.opp_king_state, 56, "{:08b}", b.opp_king_state);
+
+        let m2 = moves::Move {
+            from: 8,
+            to: 24,
+            piece: Piece::Pawn,
+            color: Color::Black,
+            capture: None,
+            category: moves::MoveCategory::Normal,
+            check: false,
+            double_check: false
+        };
+
+        let u2 = b.make_move(&m2);
+
+        assert_eq!(b.own_king_state, 0);
+        assert_eq!(b.opp_king_state, 0);
+
+        b.unmake_move(&m2, &u2);
+
+        assert_eq!(b.own_king_checked(), true);
+        assert_eq!(b.own_king_double_checked(), false);
+        assert_eq!(b.own_king_knight_checked(), true);
+        assert_eq!(b.opp_king_state, 56);
+
+        b.unmake_move(&m1, &u1);
+
+        assert_eq!(b.own_king_state, 0);
+        assert_eq!(b.opp_king_state, 0);
+
+    }
+
+
+    #[test]
     fn make_unmake_preserves_ep_state() {
         let last_rank = FIRST_RANK << 56;
 
@@ -574,13 +847,27 @@ mod tests {
                 color: Color::White,
                 capture: None,
                 category: moves::MoveCategory::DoublePawnPush,
+                check: false,
+                double_check: false,
             };
 
             let u = b.make_move(&m);
 
             assert!(b.pawns & (1 << idx + 56) != 0, "idx: {}, b:\n{:#?}", idx, b);
-            assert_eq!(moves::pop_count(b.pawns & FIRST_RANK), 0, "idx: {}, b:\n{:#?}", idx, b);
-            assert_eq!(moves::pop_count(b.pawns & last_rank), 1, "idx: {}, b:\n{:#?}", idx, b);
+            assert_eq!(
+                moves::pop_count(b.pawns & FIRST_RANK),
+                0,
+                "idx: {}, b:\n{:#?}",
+                idx,
+                b
+            );
+            assert_eq!(
+                moves::pop_count(b.pawns & last_rank),
+                1,
+                "idx: {}, b:\n{:#?}",
+                idx,
+                b
+            );
 
             b.unmake_move(&m, &u);
             assert_eq!(
@@ -600,8 +887,20 @@ mod tests {
 
             let u = b.make_move(&m);
             assert!(b.pawns & (1 << idx + 56) != 0, "idx: {}, b:\n{:#?}", idx, b);
-            assert_eq!(moves::pop_count(b.pawns & FIRST_RANK), 0, "idx: {}, b:\n{:#?}", idx, b);
-            assert_eq!(moves::pop_count(b.pawns & last_rank), 1, "idx: {}, b:\n{:#?}", idx, b);
+            assert_eq!(
+                moves::pop_count(b.pawns & FIRST_RANK),
+                0,
+                "idx: {}, b:\n{:#?}",
+                idx,
+                b
+            );
+            assert_eq!(
+                moves::pop_count(b.pawns & last_rank),
+                1,
+                "idx: {}, b:\n{:#?}",
+                idx,
+                b
+            );
         }
 
         // make (double pawn push), make (normal), make (normal), unmake, unmake, unmake
@@ -615,6 +914,8 @@ mod tests {
                 color: Color::White,
                 capture: None,
                 category: moves::MoveCategory::DoublePawnPush,
+                check: false,
+                double_check: false,
             };
 
             let m2 = moves::Move {
@@ -624,6 +925,8 @@ mod tests {
                 color: Color::Black,
                 capture: None,
                 category: moves::MoveCategory::Normal,
+                check: false,
+                double_check: false,
             };
 
             let m3 = moves::Move {
@@ -633,6 +936,8 @@ mod tests {
                 color: Color::White,
                 capture: None,
                 category: moves::MoveCategory::Normal,
+                check: false,
+                double_check: false,
             };
 
             println!("\n{:#?}", b);
@@ -641,48 +946,122 @@ mod tests {
             // EP bit set for white, blacks turn
             println!("\n{:#?}", b);
             assert!(b.pawns & (1 << idx + 56) != 0, "idx: {}, b:\n{:#?}", idx, b);
-            assert_eq!(moves::pop_count(b.pawns & FIRST_RANK), 0, "idx: {}, b:\n{:#?}", idx, b);
-            assert_eq!(moves::pop_count(b.pawns & last_rank), 1, "idx: {}, b:\n{:#?}", idx, b);
+            assert_eq!(
+                moves::pop_count(b.pawns & FIRST_RANK),
+                0,
+                "idx: {}, b:\n{:#?}",
+                idx,
+                b
+            );
+            assert_eq!(
+                moves::pop_count(b.pawns & last_rank),
+                1,
+                "idx: {}, b:\n{:#?}",
+                idx,
+                b
+            );
 
             let u2 = b.make_move(&m2);
             // EP bit still set for white, whites turn
             println!("\n{:#?}", b);
             assert!(b.pawns & (1 << idx) != 0, "idx: {}, b:\n{:#?}", idx, b);
-            assert_eq!(moves::pop_count(b.pawns & FIRST_RANK), 1, "idx: {}, b:\n{:#?}", idx, b);
-            assert_eq!(moves::pop_count(b.pawns & last_rank), 0, "idx: {}, b:\n{:#?}", idx, b);
+            assert_eq!(
+                moves::pop_count(b.pawns & FIRST_RANK),
+                1,
+                "idx: {}, b:\n{:#?}",
+                idx,
+                b
+            );
+            assert_eq!(
+                moves::pop_count(b.pawns & last_rank),
+                0,
+                "idx: {}, b:\n{:#?}",
+                idx,
+                b
+            );
 
             let u3 = b.make_move(&m3);
             // EP bit no longer set anywhere, blacks turn
             println!("\n{:#?}", b);
             assert!(b.pawns & (1 << idx + 56) == 0, "idx: {}, b:\n{:#?}", idx, b);
-            assert_eq!(moves::pop_count(b.pawns & FIRST_RANK), 0, "idx: {}, b:\n{:#?}", idx, b);
-            assert_eq!(moves::pop_count(b.pawns & last_rank), 0, "idx: {}, b:\n{:#?}", idx, b);
+            assert_eq!(
+                moves::pop_count(b.pawns & FIRST_RANK),
+                0,
+                "idx: {}, b:\n{:#?}",
+                idx,
+                b
+            );
+            assert_eq!(
+                moves::pop_count(b.pawns & last_rank),
+                0,
+                "idx: {}, b:\n{:#?}",
+                idx,
+                b
+            );
             b.unmake_move(&m3, &u3);
             // EP bit should again be set for white, whites turn
             println!("\n{:#?}", b);
-            assert!(b.pawns & (1 << idx) != 0, "idx: {}, u:\n{:#?}, b:\n{:#?}", idx, u3, b);
-            assert_eq!(moves::pop_count(b.pawns & FIRST_RANK), 1, "idx: {}, b:\n{:#?}", idx, b);
-            assert_eq!(moves::pop_count(b.pawns & last_rank), 0, "idx: {}, b:\n{:#?}", idx, b);
-
+            assert!(
+                b.pawns & (1 << idx) != 0,
+                "idx: {}, u:\n{:#?}, b:\n{:#?}",
+                idx,
+                u3,
+                b
+            );
+            assert_eq!(
+                moves::pop_count(b.pawns & FIRST_RANK),
+                1,
+                "idx: {}, b:\n{:#?}",
+                idx,
+                b
+            );
+            assert_eq!(
+                moves::pop_count(b.pawns & last_rank),
+                0,
+                "idx: {}, b:\n{:#?}",
+                idx,
+                b
+            );
 
             b.unmake_move(&m2, &u2);
             // EP bit should still be set for white, blacks turn
             println!("\n{:#?}", b);
             assert!(b.pawns & (1 << idx + 56) != 0, "idx: {}, b:\n{:#?}", idx, b);
-            assert_eq!(moves::pop_count(b.pawns & FIRST_RANK), 0, "idx: {}, b:\n{:#?}", idx, b);
-            assert_eq!(moves::pop_count(b.pawns & last_rank), 1, "idx: {}, b:\n{:#?}", idx, b);
-
+            assert_eq!(
+                moves::pop_count(b.pawns & FIRST_RANK),
+                0,
+                "idx: {}, b:\n{:#?}",
+                idx,
+                b
+            );
+            assert_eq!(
+                moves::pop_count(b.pawns & last_rank),
+                1,
+                "idx: {}, b:\n{:#?}",
+                idx,
+                b
+            );
 
             b.unmake_move(&m1, &u1);
             // EP bit no longer set anywhere, whites turn
             println!("\n{:#?}", b);
             assert!(b.pawns & (1 << idx) == 0, "idx: {}, b:\n{:#?}", idx, b);
-            assert_eq!(moves::pop_count(b.pawns & FIRST_RANK), 0, "idx: {}, b:\n{:#?}", idx, b);
-            assert_eq!(moves::pop_count(b.pawns & last_rank), 0, "idx: {}, b:\n{:#?}", idx, b);
-
+            assert_eq!(
+                moves::pop_count(b.pawns & FIRST_RANK),
+                0,
+                "idx: {}, b:\n{:#?}",
+                idx,
+                b
+            );
+            assert_eq!(
+                moves::pop_count(b.pawns & last_rank),
+                0,
+                "idx: {}, b:\n{:#?}",
+                idx,
+                b
+            );
         }
     }
 
     // TODO: test that setting EP state doesn't  set  own_pieces
-
 }

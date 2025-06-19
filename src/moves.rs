@@ -380,6 +380,8 @@ impl MoveGen {
                 color: board.color(),
                 capture: None,
                 category: MoveCategory::Normal,
+                check: false,
+                double_check: false
             })
         }
 
@@ -395,6 +397,8 @@ impl MoveGen {
                     color: board.color(),
                     capture: None,
                     category: MoveCategory::Promotion,
+                    check: false,
+                    double_check: false
                 })
             }
         }
@@ -410,6 +414,8 @@ impl MoveGen {
                 color: board.color(),
                 capture: None,
                 category: MoveCategory::DoublePawnPush,
+                check: false,
+                double_check: false
             })
         }
 
@@ -456,6 +462,8 @@ impl MoveGen {
                 color: board.color(),
                 capture: Some(board.identify(*to_idx)),
                 category: MoveCategory::Normal,
+                check: false,
+                double_check: false
             })
         }
 
@@ -464,10 +472,12 @@ impl MoveGen {
                 move_list.push(Move {
                     from: *from_idx,
                     to: *to_idx,
-                    piece: piece,
+                    piece,
                     color: board.color(),
                     capture: Some(board.identify(*to_idx)),
                     category: MoveCategory::Promotion,
+                    check: false,
+                    double_check: false
                 })
             }
         }
@@ -480,6 +490,8 @@ impl MoveGen {
                 color: board.color(),
                 capture: Some(board.identify(*to_idx)),
                 category: MoveCategory::Normal,
+                check: false,
+                double_check: false
             })
         }
 
@@ -488,10 +500,12 @@ impl MoveGen {
                 move_list.push(Move {
                     from: *from_idx,
                     to: *to_idx,
-                    piece: piece,
+                    piece,
                     color: board.color(),
                     capture: Some(board.identify(*to_idx)),
                     category: MoveCategory::Promotion,
+                    check: false,
+                    double_check: false
                 })
             }
         }
@@ -508,6 +522,8 @@ impl MoveGen {
                 color: board.color(),
                 capture: Some(board::Piece::Pawn),
                 category: MoveCategory::EnPassant,
+                check: false,
+                double_check: false
             })
         }
 
@@ -521,6 +537,8 @@ impl MoveGen {
                 color: board.color(),
                 capture: Some(board::Piece::Pawn),
                 category: MoveCategory::EnPassant,
+                check: false,
+                double_check: false
             })
         }
 
@@ -547,9 +565,11 @@ impl MoveGen {
                     from: *from_idx,
                     to: *to_idx,
                     piece: board::Piece::Knight,
-                    color: color,
+                    color,
                     capture: None,
                     category: MoveCategory::Normal,
+                    check: false,
+                    double_check: false
                 })
             }
 
@@ -558,9 +578,11 @@ impl MoveGen {
                     from: *from_idx,
                     to: *to_idx,
                     piece: board::Piece::Knight,
-                    color: color,
+                    color,
                     capture: Some(board.identify(*to_idx)),
                     category: MoveCategory::Normal,
+                    check: false,
+                    double_check: false
                 })
             }
         }
@@ -574,7 +596,7 @@ impl MoveGen {
 
     pub fn king_moves(&self, board: &board::Board) -> Vec<Move> {
         let mut move_list = Vec::new();
-        let king_idx = board.own_king;
+        let king_idx = board.own_king();
         let empty = board.empty();
         let color = board.color();
 
@@ -587,9 +609,11 @@ impl MoveGen {
                 from: *from_idx,
                 to: *to_idx,
                 piece: board::Piece::King,
-                color: color,
+                color,
                 capture: None,
                 category: MoveCategory::Normal,
+                check: false,
+                double_check: false
             })
         }
 
@@ -598,9 +622,11 @@ impl MoveGen {
                 from: *from_idx,
                 to: *to_idx,
                 piece: board::Piece::King,
-                color: color,
+                color,
                 capture: Some(board.identify(*to_idx)),
                 category: MoveCategory::Normal,
+                check: false,
+                double_check: false
             })
         }
 
@@ -633,6 +659,8 @@ impl MoveGen {
                     color: board.color(),
                     capture: None,
                     category: MoveCategory::KingsideCastle,
+                    check: false,
+                    double_check: false
                 })
             }
         }
@@ -650,6 +678,8 @@ impl MoveGen {
                     color: board.color(),
                     capture: None,
                     category: MoveCategory::QueensideCastle,
+                    check: false,
+                    double_check: false
                 })
             }
         }
@@ -705,6 +735,8 @@ impl MoveGen {
                     color,
                     capture: None,
                     category: MoveCategory::Normal,
+                    check: false,
+                    double_check: false
                 })
             }
 
@@ -719,6 +751,8 @@ impl MoveGen {
                     color,
                     capture: Some(board.identify(*to_idx)),
                     category: MoveCategory::Normal,
+                    check: false,
+                    double_check: false
                 })
             }
 
@@ -733,6 +767,8 @@ impl MoveGen {
                     color,
                     capture: None,
                     category: MoveCategory::Normal,
+                    check: false,
+                    double_check: false
                 })
             }
 
@@ -747,6 +783,8 @@ impl MoveGen {
                     color,
                     capture: Some(board.identify(*to_idx)),
                     category: MoveCategory::Normal,
+                    check: false,
+                    double_check: false
                 })
             }
         }
@@ -798,6 +836,8 @@ impl MoveGen {
                     color,
                     capture: None,
                     category: MoveCategory::Normal,
+                    check: false,
+                    double_check: false
                 })
             }
 
@@ -812,6 +852,8 @@ impl MoveGen {
                     color,
                     capture: Some(board.identify(*to_idx)),
                     category: MoveCategory::Normal,
+                    check: false,
+                    double_check: false
                 })
             }
 
@@ -826,6 +868,8 @@ impl MoveGen {
                     color,
                     capture: None,
                     category: MoveCategory::Normal,
+                    check: false,
+                    double_check: false
                 })
             }
 
@@ -840,6 +884,8 @@ impl MoveGen {
                     color,
                     capture: Some(board.identify(*to_idx)),
                     category: MoveCategory::Normal,
+                    check: false,
+                    double_check: false
                 })
             }
         }
@@ -1074,7 +1120,7 @@ impl MoveGen {
                     l_moves.push(pl_move);
                 }
             } else {
-                if self.discover_attacks(board.own_king, &pl_move, &board) == 0 {
+                if self.discover_attacks(board.own_king(), &pl_move, &board) == 0 {
                     l_moves.push(pl_move);
                 }
             }
@@ -1204,6 +1250,9 @@ pub struct Move {
     pub color: board::Color,
     pub capture: Option<board::Piece>,
     pub category: MoveCategory,
+    // follows same convention as board state check bits
+    pub check: bool,
+    pub double_check: bool,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -1348,21 +1397,8 @@ impl Orientation {
 mod tests {
     use super::*;
 
-    // there isn't really a notion of empty castling rights, so those are left to the default
-    fn empty_board() -> board::Board {
-        let mut b = board::Board::new();
-        b.own_pieces = 0;
-        b.opp_pieces = 0;
-        b.ortho_sliders = 0;
-        b.diag_sliders = 0;
-        b.pawns = 0;
-        b.own_king = 0;
-        b.opp_king = 0;
-        b
-    }
-
     fn pawns(own_pawns: Vec<u8>, opp_pawns: Vec<u8>) -> board::Board {
-        let mut b = empty_board();
+        let mut b = board::Board::empty_board();
         for own_pawn in own_pawns.iter() {
             b.own_pieces |= 1 << own_pawn;
             b.pawns |= 1 << own_pawn;
@@ -1376,28 +1412,6 @@ mod tests {
         b
     }
 
-    fn set_piece(mut b: board::Board, own: bool, sq: u8, piece: board::Piece) -> board::Board {
-        match piece {
-            board::Piece::Bishop => b.diag_sliders |= 1 << sq,
-            board::Piece::Rook => b.ortho_sliders |= 1 << sq,
-            board::Piece::Queen => {
-                b.diag_sliders |= 1 << sq;
-                b.ortho_sliders |= 1 << sq
-            }
-            board::Piece::Pawn => b.pawns |= 1 << sq,
-            board::Piece::Knight => (),
-            board::Piece::King => match own {
-                true => b.own_king = sq,
-                false => b.opp_king = sq,
-            },
-        }
-        match own {
-            true => b.own_pieces |= 1 << sq,
-            false => b.opp_pieces |= 1 << sq,
-        }
-
-        b
-    }
 
     // TODO: could probably avoid the duplicated logic by turning the other one into an iterator?
     // Returns:
@@ -1754,9 +1768,8 @@ mod tests {
                 board::Piece::King,
             ] {
                 for capture_side in [-1, 1] {
-                    let b = pawns(vec![board::square_index(6, file_idx)], Vec::new());
-                    let b = set_piece(
-                        b,
+                    let mut b = pawns(vec![board::square_index(6, file_idx)], Vec::new());
+                    b.set_piece(
                         false,
                         board::square_index(7, (file_idx as i8 + capture_side) as u8),
                         capture_piece,
@@ -1790,7 +1803,8 @@ mod tests {
         let move_gen = MoveGen::new();
 
         for sq in 0..63 {
-            let b = set_piece(empty_board(), true, sq as u8, board::Piece::Queen);
+            let mut b = board::Board::empty_board();
+            b.set_piece(true, sq as u8, board::Piece::Queen);
 
             let moves = move_gen.ortho_moves(&b);
 
@@ -1812,7 +1826,8 @@ mod tests {
         let move_gen = MoveGen::new();
 
         for sq in 0..63 {
-            let b = set_piece(empty_board(), true, sq as u8, board::Piece::Queen);
+            let mut b = board::Board::empty_board();
+            b.set_piece(true, sq as u8, board::Piece::Queen);
 
             let moves = move_gen.diag_moves(&b);
 
@@ -1842,9 +1857,9 @@ mod tests {
             );
 
             for enemy_sq in enemy_sqs {
-                let b = set_piece(empty_board(), true, sq as u8, board::Piece::Queen);
-
-                let b = set_piece(b, false, enemy_sq as u8, board::Piece::Queen);
+                let mut b = board::Board::empty_board();
+                b.set_piece(true, sq as u8, board::Piece::Queen);
+                b.set_piece(false, enemy_sq as u8, board::Piece::Queen);
 
                 let moves = move_gen.ortho_moves(&b);
 
@@ -1871,15 +1886,14 @@ mod tests {
 
         for file_idx in 0..8 {
             for rank_idx in 1..8 {
-                let b = set_piece(
-                    empty_board(),
+                let mut b = board::Board::empty_board();
+                b.set_piece(
                     true,
                     board::square_index(0, file_idx),
                     board::Piece::Queen,
                 );
 
-                let b = set_piece(
-                    b,
+                b.set_piece(
                     true,
                     board::square_index(rank_idx, file_idx),
                     board::Piece::Queen,
@@ -1907,22 +1921,20 @@ mod tests {
         for file_idx in 0..8 {
             for rank_idx_1 in 1..8 {
                 for rank_idx_2 in (rank_idx_1 + 1)..8 {
-                    let b = set_piece(
-                        empty_board(),
+                    let mut b = board::Board::empty_board();
+                    b.set_piece(
                         true,
                         board::square_index(0, file_idx),
                         board::Piece::Queen,
                     );
 
-                    let b = set_piece(
-                        b,
+                    b.set_piece(
                         true,
                         board::square_index(rank_idx_1, file_idx),
                         board::Piece::Queen,
                     );
 
-                    let b = set_piece(
-                        b,
+                    b.set_piece(
                         true,
                         board::square_index(rank_idx_2, file_idx),
                         board::Piece::Queen,
