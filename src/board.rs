@@ -242,7 +242,8 @@ impl Board {
         self.own_king_state & KING_STATE_DOUBLE_CHECK_MASK != 0 && !self.own_king_state & KING_STATE_CHECK_MASK != 0
     }
 
-    pub fn own_king_knight_checked(&self) -> bool {
+    // Useful to maintain a bit for this, pawn and knight checks are unblockable.
+    pub fn own_king_pawn_knight_checked(&self) -> bool {
         self.own_king_state & KING_STATE_CHECK_MASK != 0
             && self.own_king_state & KING_STATE_DOUBLE_CHECK_MASK != 0
     }
@@ -684,7 +685,7 @@ mod tests {
 
         assert_eq!(b.own_king_checked(), true);
         assert_eq!(b.own_king_double_checked(), false);
-        assert_eq!(b.own_king_knight_checked(), false);
+        assert_eq!(b.own_king_pawn_knight_checked(), false);
     }
 
     #[test]
@@ -705,7 +706,7 @@ mod tests {
 
         assert_eq!(b.own_king_checked(), false);
         assert_eq!(b.own_king_double_checked(), true);
-        assert_eq!(b.own_king_knight_checked(), false);
+        assert_eq!(b.own_king_pawn_knight_checked(), false);
     }
 
     #[test]
@@ -726,7 +727,7 @@ mod tests {
 
         assert_eq!(b.own_king_checked(), true);
         assert_eq!(b.own_king_double_checked(), false);
-        assert_eq!(b.own_king_knight_checked(), true);
+        assert_eq!(b.own_king_pawn_knight_checked(), true);
     }
 
     #[test]
@@ -798,7 +799,7 @@ mod tests {
 
         assert_eq!(b.own_king_checked(), true);
         assert_eq!(b.own_king_double_checked(), false);
-        assert_eq!(b.own_king_knight_checked(), true);
+        assert_eq!(b.own_king_pawn_knight_checked(), true);
         assert_eq!(b.opp_king_state, 56, "{:08b}", b.opp_king_state);
 
         let m2 = moves::Move {
@@ -821,7 +822,7 @@ mod tests {
 
         assert_eq!(b.own_king_checked(), true);
         assert_eq!(b.own_king_double_checked(), false);
-        assert_eq!(b.own_king_knight_checked(), true);
+        assert_eq!(b.own_king_pawn_knight_checked(), true);
         assert_eq!(b.opp_king_state, 56);
 
         b.unmake_move(&m1, &u1);
