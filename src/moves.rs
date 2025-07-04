@@ -1029,11 +1029,20 @@ impl MoveGen {
     //     LEGAL MOVE GEN
     // ========================
 
+    // check if normal (non-capture) move is legal
+    fn is_legal_normal(&self, m: &Move, board: &board::Board) -> bool {
+        debug_assert!(m.capture.is_none());
+
+        // TODO
+        false
+    }
+
     // Explicitly checks if own king is currently in check
     fn in_check(&self, board: &board::Board) -> bool {
         self.threatened(board.own_king(), &ORIENTATIONS, board)
     }
 
+    // TODO: optimization to try here: short circuit if attack maps don't intersect enemies
     // Checks if sq is threatened by enemies given current state of board
     // Orientations are relative to sq (ie north for vertical slider threats for a piece on the first rank)
     fn threatened(&self, sq: u8, orientations: &[Orientation], board: &board::Board) -> bool {
@@ -1070,7 +1079,6 @@ impl MoveGen {
             _ => (),
         }
 
-
         // slider threats
         let enemy_sliders = board.sliders(&orientation) & board.opp_pieces;
         // excluding enemy sliders from mask saves a call to sliding_captures and a few instructions (?)
@@ -1078,10 +1086,12 @@ impl MoveGen {
         (self.fill(&orientation, 1 << sq, mask) & enemy_sliders) != 0
     }
 
-    // Returns true if there are discover attacks on opp due to own move (for general sq)
-    // A move directly along the ray towards sq where moving piece threatens sq is not considered a discover attack
-    // i.e, enemy king on e8, two own rooks an e1 e2, move e2e4 is not a discover attack on e8
-    fn is_discover_attack(&self, sq: u8, m: &Move, board: &board::Board) -> bool {
+    // TODO: verify assumption that castling gets full legal check during psuedolegal move gen
+    // Returns true if there are discover attacks from opp on own due to own move (for general sq)
+    // This is primarily used to check whether a move places own king in check
+    fn is_discover_attack_on_own(&self, sq: u8, m: &Move, board: &board::Board) -> bool {
+        debug_assert!(board.color() == m.color);
+
         match m.category {
             MoveCategory::KingsideCastle => return false,
             MoveCategory::QueensideCastle => return false,
@@ -1090,7 +1100,7 @@ impl MoveGen {
                 // check orientation exposed by movement of own pawn
                 let rel_orientation = self.rel_orientation[(sq as usize) * 64 + (m.from as usize)];
                 if let Some(orientation) = rel_orientation {
-                    ep_threat |= self.is_discover_attack_in(
+                    ep_threat |= self.is_discover_attack_on_own_in(
                         sq,
                         (1 << m.from) | (1 << m.to),
                         (1 << (m.to - 8)),
@@ -1103,7 +1113,92 @@ impl MoveGen {
                 let rel_orientation =
                     self.rel_orientation[(sq as usize) * 64 + ((m.to - 8) as usize)];
                 if let Some(orientation) = rel_orientation {
-                    ep_threat |= self.is_discover_attack_in(
+                    ep_threat |= self.is_discover_attack_on_own_in(
+                        sq,
+                        (1 << m.from) | (1 << m.to),
+                        (1 << (m.to - 8)),
+                        &orientation,
+                        board,
+                    )
+                }
+
+                return ep_threat;
+            }
+            _ => match m.capture {
+                Some(_) => {
+                    let rel_orientation =
+                        self.rel_orientation[(sq as usize) * 64 + (m.from as usize)];
+                    if let Some(orientation) = rel_orientation {
+                        return self.is_discover_attack_on_own_in(
+                            sq,
+                            (1 << m.from) | (1 << m.to),
+                            (1 << m.to),
+                            &orientation,
+                            board,
+                        );
+                    }
+                }
+                None => {
+                    let rel_orientation =
+                        self.rel_orientation[(sq as usize) * 64 + (m.from as usize)];
+                    if let Some(orientation) = rel_orientation {
+                        return self.is_discover_attack_on_own_in(
+                            sq,
+                            (1 << m.from) | (1 << m.to),
+                            0,
+                            &orientation,
+                            board,
+                        );
+                    }
+                }
+            },
+        }
+        false
+    }
+
+    fn is_discover_attack_on_own_in(
+        &self,
+        sq: u8,
+        own_move: u64,
+        capture: u64,
+        orientation: &Orientation,
+        board: &board::Board,
+    ) -> bool {
+        let opp_sliders = board.sliders(&orientation) & board.opp_pieces & !own_move;
+        // normal capture: empty 0, own move 1, opp sliders 0, capture 1: 0 ^ 1 ^ 0 ^ 1 = 0
+        // ep capture: empty 0, own move 0, opp sliders 0, capture 1: 0 ^ 0 ^ 0 ^ 1 = 1
+        let mask = board.empty() ^ own_move ^ opp_sliders ^ capture;
+
+        (self.fill(&orientation, 1 << sq, mask) & opp_sliders) != 0
+    }
+
+    // TODO: I am pretty sure I actually need to handle discover attacks due to castling
+    // Returns true if there are discover attacks on opp due to own move (for general sq)
+    // A move directly along the ray towards sq where moving piece threatens sq is not considered a discover attack
+    // i.e, enemy king on e8, two own rooks an e1 e2, move e2e4 is not a discover attack on e8
+    fn is_discover_attack_on_opp(&self, sq: u8, m: &Move, board: &board::Board) -> bool {
+        match m.category {
+            MoveCategory::KingsideCastle => panic!("need to handle"),
+            MoveCategory::QueensideCastle => return false,
+            MoveCategory::EnPassant => {
+                let mut ep_threat = false;
+                // check orientation exposed by movement of own pawn
+                let rel_orientation = self.rel_orientation[(sq as usize) * 64 + (m.from as usize)];
+                if let Some(orientation) = rel_orientation {
+                    ep_threat |= self.is_discover_attack_on_opp_in(
+                        sq,
+                        (1 << m.from) | (1 << m.to),
+                        (1 << (m.to - 8)),
+                        &orientation,
+                        board,
+                    )
+                }
+
+                // check orientation exposed by now captured enemy pawn
+                let rel_orientation =
+                    self.rel_orientation[(sq as usize) * 64 + ((m.to - 8) as usize)];
+                if let Some(orientation) = rel_orientation {
+                    ep_threat |= self.is_discover_attack_on_opp_in(
                         sq,
                         (1 << m.from) | (1 << m.to),
                         (1 << (m.to - 8)),
@@ -1120,7 +1215,7 @@ impl MoveGen {
                     let rel_orientation =
                         self.rel_orientation[(sq as usize) * 64 + (m.from as usize)];
                     if let Some(orientation) = rel_orientation {
-                        return self.is_discover_attack_in(
+                        return self.is_discover_attack_on_opp_in(
                             sq,
                             (1 << m.from) | (1 << m.to),
                             (1 << m.to),
@@ -1134,7 +1229,7 @@ impl MoveGen {
                     let rel_orientation =
                         self.rel_orientation[(sq as usize) * 64 + (m.from as usize)];
                     if let Some(orientation) = rel_orientation {
-                        return self.is_discover_attack_in(
+                        return self.is_discover_attack_on_opp_in(
                             sq,
                             (1 << m.from) | (1 << m.to),
                             0,
@@ -1150,7 +1245,7 @@ impl MoveGen {
 
     // Checks if sq is exposed to a discover attack from own pieces in given direction
     // Orientations are relative to own piece (ie north for vertical slider threats for a piece on first rank)
-    fn is_discover_attack_in(
+    fn is_discover_attack_on_opp_in(
         &self,
         sq: u8,
         own_move: u64,
@@ -1160,7 +1255,7 @@ impl MoveGen {
     ) -> bool {
         // mask off both from and to bits of own_move
         // even if moving piece is a slider, threats from moving piece are not counted as discover attacks
-        let own_sliders = board.sliders(&orientation) & board.own_pieces & !(own_move);
+        let own_sliders = board.sliders(&orientation) & board.own_pieces & !own_move;
         // excluding own sliders from mask saves a call to sliding_captures and a few instructions (?)
         let mask = board.empty() ^ own_move ^ own_sliders ^ capture;
         (self.fill(&orientation, 1 << sq, mask) & own_sliders) != 0
@@ -1340,7 +1435,6 @@ impl Axis {
         }
     }
 
-    // TODO: rename to mask
     // Dispatches onto appropriate axis mask
     fn mask(&self, axis_idx: usize, move_gen: &MoveGen) -> u64 {
         match self {
@@ -2054,9 +2148,8 @@ mod tests {
         assert!(!mg.threatened_in(0, &Orientation::North, &b));
     }
 
-
     #[test]
-    fn discover_attack_normal_move_off_axis() {
+    fn discover_attack_on_opp_normal_move_off_axis() {
         let mg = MoveGen::new();
 
         let mut b = board::Board::empty_board();
@@ -2071,10 +2164,10 @@ mod tests {
             capture: None,
             category: MoveCategory::Normal,
             check: false,
-            double_check: false
+            double_check: false,
         };
 
-        assert_eq!(mg.is_discover_attack(36, &m, &b), true);
+        assert_eq!(mg.is_discover_attack_on_opp(36, &m, &b), true);
 
         let mut b = board::Board::empty_board();
         b.set_piece(true, 3, board::Piece::Queen);
@@ -2088,21 +2181,20 @@ mod tests {
             capture: None,
             category: MoveCategory::Normal,
             check: false,
-            double_check: false
+            double_check: false,
         };
 
-        assert_eq!(mg.is_discover_attack(30, &m, &b), true);
+        assert_eq!(mg.is_discover_attack_on_opp(30, &m, &b), true);
     }
 
     #[test]
-    fn discover_attack_normal_move_occluded_off_axis() {
+    fn discover_attack_on_opp_normal_move_occluded_off_axis() {
         let mg = MoveGen::new();
 
         let mut b = board::Board::empty_board();
         b.set_piece(true, 4, board::Piece::Queen);
         b.set_piece(true, 12, board::Piece::Rook);
         b.set_piece(false, 20, board::Piece::Pawn);
-
 
         let m = Move {
             from: 12,
@@ -2112,10 +2204,10 @@ mod tests {
             capture: None,
             category: MoveCategory::Normal,
             check: false,
-            double_check: false
+            double_check: false,
         };
 
-        assert_eq!(mg.is_discover_attack(36, &m, &b), false);
+        assert_eq!(mg.is_discover_attack_on_opp(36, &m, &b), false);
 
         let mut b = board::Board::empty_board();
         b.set_piece(true, 3, board::Piece::Queen);
@@ -2130,15 +2222,14 @@ mod tests {
             capture: None,
             category: MoveCategory::Normal,
             check: false,
-            double_check: false
+            double_check: false,
         };
 
-        assert_eq!(mg.is_discover_attack(30, &m, &b), false);
+        assert_eq!(mg.is_discover_attack_on_opp(30, &m, &b), false);
     }
 
-
     #[test]
-    fn discover_attack_normal_move_on_axis() {
+    fn discover_attack_on_opp_normal_move_on_axis() {
         let mg = MoveGen::new();
 
         let mut b = board::Board::empty_board();
@@ -2153,10 +2244,10 @@ mod tests {
             capture: None,
             category: MoveCategory::Normal,
             check: false,
-            double_check: false
+            double_check: false,
         };
 
-        assert_eq!(mg.is_discover_attack(36, &m, &b), false);
+        assert_eq!(mg.is_discover_attack_on_opp(36, &m, &b), false);
 
         let mut b = board::Board::empty_board();
         b.set_piece(true, 3, board::Piece::Queen);
@@ -2170,14 +2261,14 @@ mod tests {
             category: MoveCategory::Normal,
             capture: None,
             check: false,
-            double_check: false
+            double_check: false,
         };
 
-        assert_eq!(mg.is_discover_attack(7, &m, &b), false);
+        assert_eq!(mg.is_discover_attack_on_opp(7, &m, &b), false);
     }
 
     #[test]
-    fn discover_attack_capture_move_off_axis() {
+    fn discover_attack_on_opp_capture_move_off_axis() {
         let mg = MoveGen::new();
 
         let mut b = board::Board::empty_board();
@@ -2193,10 +2284,10 @@ mod tests {
             capture: Some(board::Piece::Rook),
             category: MoveCategory::Normal,
             check: false,
-            double_check: false
+            double_check: false,
         };
 
-        assert_eq!(mg.is_discover_attack(36, &m, &b), true);
+        assert_eq!(mg.is_discover_attack_on_opp(36, &m, &b), true);
 
         let mut b = board::Board::empty_board();
         b.set_piece(true, 3, board::Piece::Queen);
@@ -2211,15 +2302,14 @@ mod tests {
             capture: Some(board::Piece::Rook),
             category: MoveCategory::Normal,
             check: false,
-            double_check: false
+            double_check: false,
         };
 
-        assert_eq!(mg.is_discover_attack(30, &m, &b), true);
+        assert_eq!(mg.is_discover_attack_on_opp(30, &m, &b), true);
     }
 
-
     #[test]
-    fn discover_attack_capture_move_on_axis() {
+    fn discover_attack_on_opp_capture_move_on_axis() {
         let mg = MoveGen::new();
 
         let mut b = board::Board::empty_board();
@@ -2235,10 +2325,10 @@ mod tests {
             capture: Some(board::Piece::Rook),
             category: MoveCategory::Normal,
             check: false,
-            double_check: false
+            double_check: false,
         };
 
-        assert_eq!(mg.is_discover_attack(36, &m, &b), false);
+        assert_eq!(mg.is_discover_attack_on_opp(36, &m, &b), false);
 
         let mut b = board::Board::empty_board();
         b.set_piece(true, 3, board::Piece::Queen);
@@ -2253,14 +2343,14 @@ mod tests {
             category: MoveCategory::Normal,
             capture: Some(board::Piece::Rook),
             check: false,
-            double_check: false
+            double_check: false,
         };
 
-        assert_eq!(mg.is_discover_attack(7, &m, &b), false);
+        assert_eq!(mg.is_discover_attack_on_opp(7, &m, &b), false);
     }
 
     #[test]
-    fn discover_attack_ep_move() {
+    fn discover_attack_on_opp_ep_move() {
         let mg = MoveGen::new();
 
         let mut b = board::Board::empty_board();
@@ -2276,10 +2366,10 @@ mod tests {
             category: MoveCategory::EnPassant,
             capture: Some(board::Piece::Pawn),
             check: false,
-            double_check: false
+            double_check: false,
         };
 
-        assert_eq!(mg.is_discover_attack(50, &m, &b), true);
+        assert_eq!(mg.is_discover_attack_on_opp(50, &m, &b), true);
 
         let mg = MoveGen::new();
 
@@ -2296,14 +2386,14 @@ mod tests {
             category: MoveCategory::EnPassant,
             capture: Some(board::Piece::Pawn),
             check: false,
-            double_check: false
+            double_check: false,
         };
 
-        assert_eq!(mg.is_discover_attack(50, &m, &b), false);
+        assert_eq!(mg.is_discover_attack_on_opp(50, &m, &b), false);
     }
 
     #[test]
-    fn discover_attack_ep_capture() {
+    fn discover_attack_on_opp_ep_capture() {
         let mg = MoveGen::new();
 
         let mut b = board::Board::empty_board();
@@ -2319,14 +2409,14 @@ mod tests {
             category: MoveCategory::EnPassant,
             capture: Some(board::Piece::Pawn),
             check: false,
-            double_check: false
+            double_check: false,
         };
 
-        assert_eq!(mg.is_discover_attack(49, &m, &b), true, "{b:#?}");
+        assert_eq!(mg.is_discover_attack_on_opp(49, &m, &b), true, "{b:#?}");
     }
 
     #[test]
-    fn discover_attack_ep_double() {
+    fn discover_attack_on_opp_ep_double() {
         let mg = MoveGen::new();
 
         let mut b = board::Board::empty_board();
@@ -2343,12 +2433,256 @@ mod tests {
             category: MoveCategory::EnPassant,
             capture: Some(board::Piece::Pawn),
             check: false,
-            double_check: false
+            double_check: false,
         };
 
-        assert_eq!(mg.is_discover_attack(26, &m, &b), true);
+        assert_eq!(mg.is_discover_attack_on_opp(26, &m, &b), true);
     }
 
+    #[test]
+    fn discover_attack_on_own_normal_move_off_axis() {
+        let mg = MoveGen::new();
+
+        let mut b = board::Board::empty_board();
+        b.set_piece(false, 4, board::Piece::Queen);
+        b.set_piece(true, 12, board::Piece::Rook);
+
+        let m = Move {
+            from: 12,
+            to: 13,
+            piece: board::Piece::Rook,
+            color: board::Color::White,
+            capture: None,
+            category: MoveCategory::Normal,
+            check: false,
+            double_check: false,
+        };
+
+        assert_eq!(mg.is_discover_attack_on_own(36, &m, &b), true);
+
+        let mut b = board::Board::empty_board();
+        b.set_piece(false, 3, board::Piece::Queen);
+        b.set_piece(true, 12, board::Piece::Rook);
+
+        let m = Move {
+            from: 12,
+            to: 13,
+            piece: board::Piece::Rook,
+            color: board::Color::White,
+            capture: None,
+            category: MoveCategory::Normal,
+            check: false,
+            double_check: false,
+        };
+
+        assert_eq!(mg.is_discover_attack_on_own(30, &m, &b), true);
+    }
+
+    #[test]
+    fn discover_attack_on_own_normal_move_occluded_off_axis() {
+        let mg = MoveGen::new();
+
+        let mut b = board::Board::empty_board();
+        b.set_piece(false, 4, board::Piece::Queen);
+        b.set_piece(true, 12, board::Piece::Rook);
+        b.set_piece(false, 20, board::Piece::Pawn);
+
+        let m = Move {
+            from: 12,
+            to: 13,
+            piece: board::Piece::Rook,
+            color: board::Color::White,
+            capture: None,
+            category: MoveCategory::Normal,
+            check: false,
+            double_check: false,
+        };
+
+        assert_eq!(mg.is_discover_attack_on_own(36, &m, &b), false);
+
+        let mut b = board::Board::empty_board();
+        b.set_piece(false, 3, board::Piece::Queen);
+        b.set_piece(true, 12, board::Piece::Rook);
+        b.set_piece(false, 21, board::Piece::Pawn);
+
+        let m = Move {
+            from: 12,
+            to: 13,
+            piece: board::Piece::Rook,
+            color: board::Color::White,
+            capture: None,
+            category: MoveCategory::Normal,
+            check: false,
+            double_check: false,
+        };
+
+        assert_eq!(mg.is_discover_attack_on_own(30, &m, &b), false);
+    }
+
+    #[test]
+    fn discover_attack_on_own_normal_move_on_axis() {
+        let mg = MoveGen::new();
+
+        let mut b = board::Board::empty_board();
+        b.set_piece(false, 4, board::Piece::Queen);
+        b.set_piece(true, 12, board::Piece::Rook);
+
+        let m = Move {
+            from: 12,
+            to: 20,
+            piece: board::Piece::Rook,
+            color: board::Color::White,
+            capture: None,
+            category: MoveCategory::Normal,
+            check: false,
+            double_check: false,
+        };
+
+        assert_eq!(mg.is_discover_attack_on_opp(36, &m, &b), false);
+
+        let mut b = board::Board::empty_board();
+        b.set_piece(false, 3, board::Piece::Queen);
+        b.set_piece(true, 4, board::Piece::Rook);
+
+        let m = Move {
+            from: 4,
+            to: 6,
+            piece: board::Piece::Rook,
+            color: board::Color::White,
+            category: MoveCategory::Normal,
+            capture: None,
+            check: false,
+            double_check: false,
+        };
+
+        assert_eq!(mg.is_discover_attack_on_own(7, &m, &b), false);
+    }
+
+    #[test]
+    fn discover_attack_on_own_capture_move_off_axis() {
+        let mg = MoveGen::new();
+
+        let mut b = board::Board::empty_board();
+        b.set_piece(false, 4, board::Piece::Queen);
+        b.set_piece(true, 12, board::Piece::Rook);
+        b.set_piece(false, 13, board::Piece::Rook);
+
+        let m = Move {
+            from: 12,
+            to: 13,
+            piece: board::Piece::Rook,
+            color: board::Color::White,
+            capture: Some(board::Piece::Rook),
+            category: MoveCategory::Normal,
+            check: false,
+            double_check: false,
+        };
+
+        assert_eq!(mg.is_discover_attack_on_own(36, &m, &b), true);
+
+        let mut b = board::Board::empty_board();
+        b.set_piece(false, 3, board::Piece::Queen);
+        b.set_piece(true, 12, board::Piece::Rook);
+        b.set_piece(false, 13, board::Piece::Rook);
+
+        let m = Move {
+            from: 12,
+            to: 13,
+            piece: board::Piece::Rook,
+            color: board::Color::White,
+            capture: Some(board::Piece::Rook),
+            category: MoveCategory::Normal,
+            check: false,
+            double_check: false,
+        };
+
+        assert_eq!(mg.is_discover_attack_on_own(30, &m, &b), true);
+    }
+
+    #[test]
+    fn discover_attack_on_own_capture_move_on_axis() {
+        let mg = MoveGen::new();
+
+        let mut b = board::Board::empty_board();
+        b.set_piece(true, 12, board::Piece::Rook);
+        b.set_piece(false, 20, board::Piece::Rook);
+
+        let m = Move {
+            from: 12,
+            to: 20,
+            piece: board::Piece::Rook,
+            color: board::Color::White,
+            capture: Some(board::Piece::Rook),
+            category: MoveCategory::Normal,
+            check: false,
+            double_check: false,
+        };
+
+        assert_eq!(mg.is_discover_attack_on_own(36, &m, &b), false, "{b:#?}");
+
+        let mut b = board::Board::empty_board();
+        b.set_piece(true, 4, board::Piece::Rook);
+        b.set_piece(false, 6, board::Piece::Rook);
+
+        let m = Move {
+            from: 4,
+            to: 6,
+            piece: board::Piece::Rook,
+            color: board::Color::White,
+            category: MoveCategory::Normal,
+            capture: Some(board::Piece::Rook),
+            check: false,
+            double_check: false,
+        };
+
+        assert_eq!(mg.is_discover_attack_on_own(7, &m, &b), false);
+    }
+
+    #[test]
+    fn discover_attack_on_own_ep_move() {
+        let mg = MoveGen::new();
+
+        let mut b = board::Board::empty_board();
+        b.set_piece(true, 34, board::Piece::Pawn);
+        b.set_piece(false, 26, board::Piece::Queen);
+        b.set_piece(false, 35, board::Piece::Pawn);
+
+        let m = Move {
+            from: 34,
+            to: 43,
+            piece: board::Piece::Pawn,
+            color: board::Color::White,
+            category: MoveCategory::EnPassant,
+            capture: Some(board::Piece::Pawn),
+            check: false,
+            double_check: false,
+        };
+
+        assert_eq!(mg.is_discover_attack_on_own(50, &m, &b), true);
+    }
+
+    #[test]
+    fn discover_attack_on_own_ep_capture() {
+        let mg = MoveGen::new();
+
+        let mut b = board::Board::empty_board();
+        b.set_piece(true, 34, board::Piece::Pawn);
+        b.set_piece(false, 28, board::Piece::Queen);
+        b.set_piece(false, 35, board::Piece::Pawn);
+
+        let m = Move {
+            from: 34,
+            to: 43,
+            piece: board::Piece::Pawn,
+            color: board::Color::White,
+            category: MoveCategory::EnPassant,
+            capture: Some(board::Piece::Pawn),
+            check: false,
+            double_check: false,
+        };
+
+        assert_eq!(mg.is_discover_attack_on_own(49, &m, &b), true, "{b:#?}");
+    }
 
     #[test]
     fn perft_1() {
